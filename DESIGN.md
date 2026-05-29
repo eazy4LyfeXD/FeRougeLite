@@ -820,15 +820,64 @@ Poison DoT is applied to all living units of a faction at the moment their phase
 
 ## 11. Roguelite Progression
 
-**[TBD]** — Core loop not yet designed. Questions to resolve:
+### Run structure
 
-- How many maps make a full run?
-- What is the inter-map screen? (shop, rest, upgrade node?)
-- What meta-upgrades carry over between runs?
-- Is there a currency (gold, shards)?
-- Do units level up within a run, or between runs, or both?
-- Are there items or weapon types?
-- What unlocks (new lords, enemy variants, map modifiers)?
+A full run is **5 floors**. Each floor is a new procedurally generated map (different random seed). Clearing the boss on the Throne tile advances to the next floor. Dying on any floor ends the run.
+
+### Floor transition
+
+When the boss is defeated:
+
+1. The screen shows **"FLOOR CLEAR"** and the next floor number.
+2. The lord's full state (stats, level, XP, weapons, current HP) is saved.
+3. A new random map seed is generated for the next floor.
+4. The player returns to the title screen and can **Continue** to load the next floor.
+
+On loading a new floor, the lord receives a **50 % HP restoration** (current HP + ½ of max HP, capped at max HP). All other state (level, XP, inventory) carries over unchanged.
+
+### Run completion
+
+Clearing floor 5 shows **"CONQUERED! All 5 floors cleared!"**. The save slot is then cleared (the slot returns to EMPTY), ready for a fresh run.
+
+### Enemy scaling
+
+All enemies on floor N have their base stats boosted proportionally:
+
+| Stat | Per-floor increase |
+|---|---|
+| HP | +3 per floor |
+| Pow / Moj | +1 per floor |
+| SP | +0.5 per floor (rounded) |
+| Def / MDef | +1 / +0.5 per floor |
+| Boss HP | +8 per floor |
+| Boss Pow / Def | +2 per floor |
+
+Example — floor 5 (fMod = 4) compared to floor 1:
+
+| Enemy | HP | Pow | Def |
+|---|---|---|---|
+| Grunt | 14 → **26** | 7 → **11** | 4 → **8** |
+| Fletcher | 12 → **24** | 8 → **12** | 2 → **6** |
+| Necromancer | 10 → **22** | Moj 10 → **14** | 1 → **5** |
+| General (boss) | 30 → **62** | 12 → **20** | 7 → **15** |
+
+### XP scaling across floors
+
+The XP formula includes a floor multiplier so that earnings stay roughly constant even as the lord levels up:
+
+```
+xp = max(5, round( 40 × 0.9^(lordLevel−1) × (1 + (floor−1) × 0.15) ))
+```
+
+This produces ~40 XP per kill at floor 1 / level 1, and keeps that roughly stable through floor 5 / level 6+. Bosses always award **100 XP**.
+
+### [TBD] Future progression features
+
+- Inter-floor rest screen (shop, upgrade choice, healing options)
+- Meta-upgrades that persist across runs (unlockable lords, passive bonuses)
+- Currency system
+- More enemy variety and elite enemies at higher floors
+- Branching floor paths
 
 ---
 

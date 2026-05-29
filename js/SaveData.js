@@ -8,8 +8,9 @@ const SaveData = {
     return {
       hasSave:      false,
       selectedLord: -1,
-      currentLevel: 1,
+      currentLevel: 1,   // floor number (1–MAX_FLOORS)
       mapSeed:      0,
+      playerStats:  null, // persisted lord state between floors (null on floor 1)
     };
   },
 
@@ -37,7 +38,7 @@ const SaveData = {
   newGame(slot) {
     const d      = this.defaults();
     d.hasSave    = true;
-    d.mapSeed    = Math.floor(Math.random() * 2_000_000);
+    d.mapSeed    = Math.floor(Math.random() * 2_000_000_000);
     this.save(slot, d);
     return d;
   },

@@ -4,6 +4,8 @@
 const GAME_W = 240;
 const GAME_H = 160;
 
+const MAX_FLOORS = 5;   // total floors in a run
+
 // Tile types
 const TILE = {
   PLAIN:    0,

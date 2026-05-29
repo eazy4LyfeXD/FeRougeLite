@@ -43,10 +43,12 @@ class GameMapScene extends Phaser.Scene {
     this.itemActCursor  = 0;        // cursor in item action sub-menu
     this.itemActOptions = [];       // ['USE','DROP'] or ['EQUIP','DROP']
 
-    this.blinkOn  = true;
-    this.blinkT   = 0;
-    this.statusMsg = 'Player Phase';
-    this.statusT   = 2000;
+    this.runComplete = false;
+
+    this.blinkOn   = true;
+    this.blinkT    = 0;
+    this.statusMsg = `Floor ${this.saveData.currentLevel}`;
+    this.statusT   = 2500;
     this.battleLog = [];
     this.logT      = 0;
 
@@ -100,10 +102,13 @@ class GameMapScene extends Phaser.Scene {
   //  UNIT SPAWNING
   // ═══════════════════════════════════════════════════════════════════════════
   _spawnUnits() {
-    const midY = Math.floor(MAP_H / 2);
-    const ld   = LORD_DEFS[this.saveData.selectedLord];
+    const midY  = Math.floor(MAP_H / 2);
+    const ld    = LORD_DEFS[this.saveData.selectedLord];
+    const floor = this.saveData.currentLevel;    // 1–MAX_FLOORS
+    const fMod  = floor - 1;                     // 0 on floor 1, 4 on floor 5
 
-    // Lord only — player starts each map alone
+    // ── Lord ─────────────────────────────────────────────────────────────────
+    // Always create from base stats; saved state is layered on top below.
     const lordWeapons = (ld.startingWeapons || []).map(key => makeWeapon(key));
     this.units.push(new Unit({
       name: ld.label, faction: FACTION.PLAYER,
@@ -115,24 +120,50 @@ class GameMapScene extends Phaser.Scene {
       weapons: lordWeapons,
     }));
 
-    // Enemies (random positions on right half)
+    // Restore persisted lord state (set after clearing floor 1+)
+    const lord = this.units[0];
+    const ps   = this.saveData.playerStats;
+    if (ps) {
+      lord.maxHp = ps.maxHp;  lord.hp   = ps.hp;
+      lord.pow   = ps.pow;    lord.moj  = ps.moj;
+      lord.sp    = ps.sp;     lord.lck  = ps.lck;
+      lord.def   = ps.def;    lord.mdef = ps.mdef;
+      lord.level = ps.level;  lord.xp   = ps.xp || 0;
+      if (ps.weapons && ps.weapons.length > 0) {
+        lord.weapons = ps.weapons.map(w => ({ ...w }));
+        lord.equippedWeapon =
+          (ps.equippedIdx >= 0 ? lord.weapons[ps.equippedIdx] : null)
+          || lord.weapons.find(w => !w.isStaff && !w.isConsumable)
+          || lord.weapons[0] || null;
+      }
+      // 50 % HP restoration at the start of each new floor
+      lord.hp = Math.min(lord.maxHp, lord.hp + Math.floor(lord.maxHp / 2));
+    }
+
+    // ── Enemies (scaled by floor) ────────────────────────────────────────────
+    // Each stat grows by a fixed amount per floor beyond the first.
+    const sc = (base, perFloor) => base + Math.round(fMod * perFloor);
+
     const eTypes = [
       {
         name: 'Grunt',       className: 'Grunt',
         color: 0xc04040, symbol: '♟',
-        hp: 14, pow: 7,  moj: 0,  sp: 4, lck: 2, def: 4, mdef: 2, move: 4,
+        hp: sc(14,3), pow: sc(7,1),  moj: 0,      sp: sc(4,0.5),
+        lck: 2,        def: sc(4,1), mdef: sc(2,0.5), move: 4,
         moveCosts: CLASSES.GRUNT.moveCosts,
       },
       {
         name: 'Fletcher',    className: 'Fletcher',
         color: 0xc07030, symbol: '♝',
-        hp: 12, pow: 8,  moj: 0,  sp: 6, lck: 3, def: 2, mdef: 1, move: 6,
+        hp: sc(12,3), pow: sc(8,1),  moj: 0,      sp: sc(6,0.5),
+        lck: 3,        def: sc(2,1), mdef: sc(1,0.5), move: 6,
         moveCosts: CLASSES.FLETCHER.moveCosts,
       },
       {
         name: 'Necromancer', className: 'Necromancer',
         color: 0x9030c0, symbol: '♜',
-        hp: 10, pow: 2,  moj: 10, sp: 5, lck: 4, def: 1, mdef: 5, move: 5,
+        hp: sc(10,3), pow: 2,        moj: sc(10,1), sp: sc(5,0.5),
+        lck: 4,        def: sc(1,1), mdef: sc(5,0.5), move: 5,
         moveCosts: CLASSES.NECROMANCER.moveCosts,
       },
     ];
@@ -150,12 +181,14 @@ class GameMapScene extends Phaser.Scene {
       }
     }
 
-    // Boss on throne
+    // ── Boss (scales faster than regulars) ────────────────────────────────────
     if (this.thronePos && !this._unitAt(this.thronePos.x, this.thronePos.y)) {
       this.units.push(new Unit({
         name: 'General', className: 'Bulwark', faction: FACTION.ENEMY,
         gx: this.thronePos.x, gy: this.thronePos.y,
-        hp: 30, pow: 12, moj: 3, sp: 4, lck: 5, def: 7, mdef: 4, move: 3,
+        hp:   sc(30, 8), pow: sc(12, 2), moj: 3,
+        sp:   sc(4, 0.5), lck: 5,
+        def:  sc(7, 2),  mdef: sc(4, 0.5), move: 3,
         color: 0xe030e0, symbol: '♚', isBoss: true,
         moveCosts: CLASSES.BULWARK.moveCosts,
       }));
@@ -575,11 +608,16 @@ class GameMapScene extends Phaser.Scene {
     this.logT = 2500;
     this._resetSelection();
 
-    // Award XP to the player attacker when they kill an enemy
+    // Award XP to the player attacker when they kill an enemy.
+    // Floor multiplier keeps XP per kill roughly constant as both level and
+    // floor increase simultaneously.
     if (attacker.faction === FACTION.PLAYER && !defender.alive) {
+      const floor   = this.saveData.currentLevel;
       const xpAmt   = defender.isBoss
         ? 100
-        : Math.max(5, Math.round(40 * Math.pow(0.9, attacker.level - 1)));
+        : Math.max(5, Math.round(
+            40 * Math.pow(0.9, attacker.level - 1) * (1 + (floor - 1) * 0.15)
+          ));
       const startXP = attacker.xp;
       const result  = attacker.awardXP(xpAmt);
       this.xpAnim   = {
@@ -602,16 +640,38 @@ class GameMapScene extends Phaser.Scene {
   }
 
   _checkEndCondition() {
-    const lordAlive    = this.units.some(u => u.faction === FACTION.PLAYER && u.isLord);
-    const enemiesLeft  = this.units.some(u => u.faction === FACTION.ENEMY);
-    const bossAlive    = this.units.some(u => u.isBoss);
+    const lordAlive   = this.units.some(u => u.faction === FACTION.PLAYER && u.isLord);
+    const enemiesLeft = this.units.some(u => u.faction === FACTION.ENEMY);
+    const bossAlive   = this.units.some(u => u.isBoss);
 
     if (!lordAlive) {
       this.phase = PHASE.GAME_OVER;
     } else if (!enemiesLeft || !bossAlive) {
-      this.phase = PHASE.VICTORY;
-      this.saveData.currentLevel++;
-      SaveData.save(this.slotIndex, this.saveData);
+      this.runComplete = (this.saveData.currentLevel >= MAX_FLOORS);
+      this.phase       = PHASE.VICTORY;
+
+      const lord = this.units.find(u => u.faction === FACTION.PLAYER && u.isLord);
+
+      if (this.runComplete) {
+        // Run is over — clear the save slot so it's ready for a fresh run
+        SaveData.save(this.slotIndex, { hasSave: false });
+      } else {
+        // Save lord state and advance to the next floor
+        if (lord) {
+          this.saveData.playerStats = {
+            maxHp: lord.maxHp, hp:    lord.hp,
+            pow:   lord.pow,   moj:   lord.moj,
+            sp:    lord.sp,    lck:   lord.lck,
+            def:   lord.def,   mdef:  lord.mdef,
+            level: lord.level, xp:    lord.xp || 0,
+            weapons:     lord.weapons.map(w => ({ ...w })),
+            equippedIdx: lord.weapons.indexOf(lord.equippedWeapon),
+          };
+        }
+        this.saveData.currentLevel++;
+        this.saveData.mapSeed = Math.floor(Math.random() * 2_000_000_000);
+        SaveData.save(this.slotIndex, this.saveData);
+      }
     }
   }
 
@@ -1049,7 +1109,7 @@ class GameMapScene extends Phaser.Scene {
     const isPlayer = this.phase === PHASE.PLAYER_TURN;
     this.txtPhase.setColor(isPlayer ? C.PHASE_P : C.PHASE_E);
     this.txtPhase.setText(isPlayer ? 'PLAYER TURN' : 'ENEMY TURN');
-    this.txtTurn.setText(`Turn ${this.turnNumber}`);
+    this.txtTurn.setText(`T${this.turnNumber}  F${this.saveData.currentLevel}/${MAX_FLOORS}`);
 
     // Unit info
     const u = this._unitAt(this.cursorX, this.cursorY);
@@ -1182,8 +1242,13 @@ class GameMapScene extends Phaser.Scene {
     this.txtEndHint.setVisible(isEnd);
 
     if (this.phase === PHASE.VICTORY) {
-      this.txtEndTitle.setText('VICTORY!').setColor('#f0d060');
-      this.txtEndSub.setText('The enemy is defeated!');
+      if (this.runComplete) {
+        this.txtEndTitle.setText('CONQUERED!').setColor('#f0d060');
+        this.txtEndSub.setText('All 5 floors cleared!');
+      } else {
+        this.txtEndTitle.setText('FLOOR CLEAR').setColor('#f0d060');
+        this.txtEndSub.setText(`Advance to floor ${this.saveData.currentLevel}`);
+      }
       this.txtEndHint.setText(this.blinkOn ? 'Press X to return to title' : '');
     } else if (this.phase === PHASE.GAME_OVER) {
       this.txtEndTitle.setText('GAME OVER').setColor('#e05050');
