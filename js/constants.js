@@ -168,31 +168,31 @@ const C = {
 //               'execute' {charges}  [UI not yet implemented]
 const WEAPON_DATA = {
   // ── Swords ──────────────────────────────────────────────────────────────────
-  WOOD_SWORD:   { name: 'Wood Sword',   type: 'sword', tier: 'wood',    might: 2, hit: 90, crit: 0, uses: 40, maxUses: 40, range: [1,1] },
-  BRONZE_SWORD: { name: 'Bronze Sword', type: 'sword', tier: 'bronze',  might: 4, hit: 90, crit: 0, uses: 25, maxUses: 25, range: [1,1] },
-  IRON_SWORD:   { name: 'Iron Sword',   type: 'sword', tier: 'iron',    might: 6, hit: 85, crit: 0, uses: 20, maxUses: 20, range: [1,1] },
+  WOOD_SWORD:   { name: 'Wood Sword',   type: 'sword', tier: 'wood',    might: 2, hit: 90, crit: 0, uses: 40, maxUses: 40, range: [1,1], desc: 'A crude practice blade.' },
+  BRONZE_SWORD: { name: 'Bronze Sword', type: 'sword', tier: 'bronze',  might: 4, hit: 90, crit: 0, uses: 25, maxUses: 25, range: [1,1], desc: 'A dependable bronze sword.' },
+  IRON_SWORD:   { name: 'Iron Sword',   type: 'sword', tier: 'iron',    might: 6, hit: 85, crit: 0, uses: 20, maxUses: 20, range: [1,1], desc: 'A heavy iron blade.' },
   // ── Lances ──────────────────────────────────────────────────────────────────
-  WOOD_LANCE:   { name: 'Wood Lance',   type: 'lance', tier: 'wood',    might: 3, hit: 80, crit: 0, uses: 35, maxUses: 35, range: [1,1] },
-  BRONZE_LANCE: { name: 'Bronze Lance', type: 'lance', tier: 'bronze',  might: 5, hit: 80, crit: 0, uses: 25, maxUses: 25, range: [1,1] },
-  IRON_LANCE:   { name: 'Iron Lance',   type: 'lance', tier: 'iron',    might: 7, hit: 75, crit: 0, uses: 20, maxUses: 20, range: [1,1] },
+  WOOD_LANCE:   { name: 'Wood Lance',   type: 'lance', tier: 'wood',    might: 3, hit: 80, crit: 0, uses: 35, maxUses: 35, range: [1,1], desc: 'A simple wooden spear.' },
+  BRONZE_LANCE: { name: 'Bronze Lance', type: 'lance', tier: 'bronze',  might: 5, hit: 80, crit: 0, uses: 25, maxUses: 25, range: [1,1], desc: 'Standard-issue spear.' },
+  IRON_LANCE:   { name: 'Iron Lance',   type: 'lance', tier: 'iron',    might: 7, hit: 75, crit: 0, uses: 20, maxUses: 20, range: [1,1], desc: 'A solid iron lance.' },
   // ── Axes ────────────────────────────────────────────────────────────────────
-  WOOD_AXE:     { name: 'Wood Axe',     type: 'axe',   tier: 'wood',    might: 4, hit: 70, crit: 0, uses: 35, maxUses: 35, range: [1,1] },
-  BRONZE_AXE:   { name: 'Bronze Axe',   type: 'axe',   tier: 'bronze',  might: 6, hit: 70, crit: 0, uses: 25, maxUses: 25, range: [1,1] },
-  IRON_AXE:     { name: 'Iron Axe',     type: 'axe',   tier: 'iron',    might: 8, hit: 65, crit: 0, uses: 20, maxUses: 20, range: [1,1] },
+  WOOD_AXE:     { name: 'Wood Axe',     type: 'axe',   tier: 'wood',    might: 4, hit: 70, crit: 0, uses: 35, maxUses: 35, range: [1,1], desc: 'Rough-hewn hatchet.' },
+  BRONZE_AXE:   { name: 'Bronze Axe',   type: 'axe',   tier: 'bronze',  might: 6, hit: 70, crit: 0, uses: 25, maxUses: 25, range: [1,1], desc: 'A weighty bronze axe.' },
+  IRON_AXE:     { name: 'Iron Axe',     type: 'axe',   tier: 'iron',    might: 8, hit: 65, crit: 0, uses: 20, maxUses: 20, range: [1,1], desc: 'Brutal cleaving power.' },
   // ── Bows ────────────────────────────────────────────────────────────────────
-  WOOD_BOW:     { name: 'Wood Bow',     type: 'bow',   tier: 'wood',    might: 2, hit: 85, crit: 0, uses: 35, maxUses: 35, range: [2,2] },
-  BRONZE_BOW:   { name: 'Bronze Bow',   type: 'bow',   tier: 'bronze',  might: 4, hit: 85, crit: 0, uses: 25, maxUses: 25, range: [2,2] },
-  IRON_BOW:     { name: 'Iron Bow',     type: 'bow',   tier: 'iron',    might: 6, hit: 80, crit: 0, uses: 20, maxUses: 20, range: [2,2] },
+  WOOD_BOW:     { name: 'Wood Bow',     type: 'bow',   tier: 'wood',    might: 2, hit: 85, crit: 0, uses: 35, maxUses: 35, range: [2,2], desc: 'A weak practice bow.' },
+  BRONZE_BOW:   { name: 'Bronze Bow',   type: 'bow',   tier: 'bronze',  might: 4, hit: 85, crit: 0, uses: 25, maxUses: 25, range: [2,2], desc: 'A reliable bronze bow.' },
+  IRON_BOW:     { name: 'Iron Bow',     type: 'bow',   tier: 'iron',    might: 6, hit: 80, crit: 0, uses: 20, maxUses: 20, range: [2,2], desc: 'High-tension iron bow.' },
   // ── Tomes & Dark Magic (isMagic — uses Moj stat for attack) ─────────────────
-  FLAME:   { name: 'Flame',   type: 'tome', tier: 'bronze', isMagic: true, might:  5, hit: 85, crit: 5, uses: 20, maxUses: 20, range: [1,2], effect: { type: 'burn',   chance: 40  } },
-  SMITE:   { name: 'Smite',   type: 'tome', tier: 'bronze', isMagic: true, might: 25, hit: 70, crit: 0, uses:  3, maxUses:  3, range: [1,2] },
-  DROUGHT: { name: 'Drought', type: 'dark', tier: 'wood',   isMagic: true, might:  2, hit: 85, crit: 0, uses: 25, maxUses: 25, range: [1,2], effect: { type: 'poison', chance: 100 } },
+  FLAME:   { name: 'Flame',   type: 'tome', tier: 'bronze', isMagic: true, might:  5, hit: 85, crit: 5, uses: 20, maxUses: 20, range: [1,2], effect: { type: 'burn',   chance: 40  }, desc: 'Fire tome. Burns on hit.' },
+  SMITE:   { name: 'Smite',   type: 'tome', tier: 'bronze', isMagic: true, might: 25, hit: 70, crit: 0, uses:  3, maxUses:  3, range: [1,2],                                           desc: 'Holy wrath. 3 uses only.' },
+  DROUGHT: { name: 'Drought', type: 'dark', tier: 'wood',   isMagic: true, might:  2, hit: 85, crit: 0, uses: 25, maxUses: 25, range: [1,2], effect: { type: 'poison', chance: 100 }, desc: 'Dark curse. Poisons on hit.' },
   // ── Staves (support only — isStaff; skipped in auto-equip for combat) ───────
-  HEAL: { name: 'Heal', type: 'staff', tier: 'bronze', isStaff: true, might: 0, hit: 100, crit: 0, uses: 5, maxUses: 5, range: [1,1], healAmount: 10 },
+  HEAL: { name: 'Heal', type: 'staff', tier: 'bronze', isStaff: true, might: 0, hit: 100, crit: 0, uses: 5, maxUses: 5, range: [1,1], healAmount: 10, desc: 'Restores HP to an ally.' },
   // ── Special lord weapons ─────────────────────────────────────────────────────
-  SERPENTS_BONE: { name: "Serpent's Bone", type: 'sword', tier: 'special', might:  6, hit: 85, crit: 5, uses: 15, maxUses: 15, range: [1,1], effect: { type: 'execute',   charges: 1 } },
-  PIERCER:       { name: 'Piercer',        type: 'lance', tier: 'special', might:  5, hit: 80, crit: 0, uses: 20, maxUses: 20, range: [1,1], effect: { type: 'effective', vsClass: 'Bulwark', multiplier: 3 } },
-  SWIFT_BLADE:   { name: 'Swift Blade',    type: 'sword', tier: 'special', might:  4, hit: 90, crit: 0, uses: 20, maxUses: 20, range: [1,1], effect: { type: 'effective', vsWeapon: 'axe',    multiplier: 2 } },
+  SERPENTS_BONE: { name: "Serpent's Bone", type: 'sword', tier: 'special', might:  6, hit: 85, crit: 5, uses: 15, maxUses: 15, range: [1,1], effect: { type: 'execute',   charges: 1 },                              desc: 'Stolen from a dead god.' },
+  PIERCER:       { name: 'Piercer',        type: 'lance', tier: 'special', might:  5, hit: 80, crit: 0, uses: 20, maxUses: 20, range: [1,1], effect: { type: 'effective', vsClass: 'Bulwark', multiplier: 3 },        desc: 'Forged to crack plate armor.' },
+  SWIFT_BLADE:   { name: 'Swift Blade',    type: 'sword', tier: 'special', might:  4, hit: 90, crit: 0, uses: 20, maxUses: 20, range: [1,1], effect: { type: 'effective', vsWeapon: 'axe',    multiplier: 2 },        desc: 'Honed for quick strikes.' },
 };
 
 // Clone a weapon template into a fresh instance (each unit tracks uses independently).

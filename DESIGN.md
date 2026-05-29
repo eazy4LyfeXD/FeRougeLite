@@ -468,9 +468,10 @@ When the game is more fleshed out, a dedicated `CombatScene.js` will be added th
 - Press **E** while the cursor is on any unit (player or enemy) to open the Status Screen.
 - Works during both Player Phase and Enemy Phase. Not available on the end screen (Victory/Game Over).
 - The Status Screen overlays the game map — the map is paused and stays visible behind.
-- Press **E**, **X**, **Z**, or **Esc** to close and resume the game.
+- The screen has two sub-views: **Stats** (default) and **Item Detail**.
 
-### Layout
+### Stats view
+
 ```
 ┌──────────────────────────────────────┐
 │ ┌──────────┐  NAME          Lv. ##  │
@@ -480,14 +481,72 @@ When the game is more fleshed out, a dedicated `CombatScene.js` will be added th
 │ │  symbol  │  SP   ##   Lck  ##     │
 │ │          │  Def  ##   MDef ##     │
 │ │ [faction]│  Move ##               │
-│ └──────────┘                        │
-│           [ E / X / Z : close ]     │
+│ └──────────┘  ─────────────────────  │
+│               ITEMS                 │
+│               > Item name  XX/XX    │
+│                 Item name  XX/XX    │
+│                 Item name  XX/XX    │
+│        E:info  W/S:item  Z:close    │
 └──────────────────────────────────────┘
 ```
-- **Portrait:** drawn using unit color + their symbol glyph. No sprite sheets required.
-- **Faction indicator:** blue strip (Player) or red strip (Enemy) at top of portrait.
+
+- **Portrait:** drawn using unit color + symbol glyph. Lords use real portrait images.
+- **Faction indicator:** blue stripe (Player) or red stripe (Enemy) at top of portrait.
 - Stats shown: HP (current/max), Pow, Moj, SP, Lck, Def, MDef, Move, Level.
-- Enemy stats are fully visible — this is intentional for strategic planning.
+- The dominant offensive stat (Pow or Moj based on equipped weapon) is highlighted.
+- Enemy stats are fully visible — intentional for strategic planning.
+
+#### Item list (bottom of stats view)
+
+- All weapons in the unit's inventory are listed with current and max uses (`XX/XX`).
+- Up to **3 rows** are visible; scroll with **W/S** or **Up/Down** if the unit has more.
+- The selected row is highlighted with `>` and shown in the cursor colour.
+- If the unit carries no items the list shows `None`.
+
+#### Stats view controls
+
+| Input | Action |
+|---|---|
+| W / Up | Scroll item cursor up |
+| S / Down | Scroll item cursor down |
+| E | Open Item Detail for the selected item (if any items exist; otherwise close) |
+| X / Z / Esc | Close the Status Screen |
+
+---
+
+### Item Detail view
+
+Pressing **E** on a highlighted item replaces the panel with the item's full data sheet. The portrait is hidden; the item fills the whole panel.
+
+```
+┌──────────────────────────────────────┐
+│ ITEM NAME                           │
+│ Type  [Tier]                        │
+│ ─────────────────────────────────── │
+│ Mgt:X  Hit:X  Crt:X  Uses:XX/XX    │
+│ Range: X-X  [Magic]                 │
+│ ─────────────────────────────────── │
+│ Eff: [on-hit effect description]    │
+│ ─────────────────────────────────── │
+│ [short flavor description]          │
+│                                     │
+│              E / Z : back           │
+└──────────────────────────────────────┘
+```
+
+- **Mgt** — Might (added to Pow/Moj before damage calculation).
+- **Hit** — Hit rate (tracked; miss system not yet active).
+- **Crt** — Crit chance (tracked; crit system not yet active).
+- **Uses/MaxUses** — remaining uses out of original total.
+- **Range** — attack range min-max. `Magic` tag shown for tomes and dark magic.
+- **Eff** — on-hit effect, if any (Burn chance, Poison chance, damage multiplier, Execute).
+- **Flavor** — short placeholder description.
+
+#### Item Detail controls
+
+| Input | Action |
+|---|---|
+| E / X / Z / Esc / Enter | Return to the Stats view |
 
 ---
 
