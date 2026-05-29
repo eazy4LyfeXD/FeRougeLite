@@ -491,7 +491,182 @@ When the game is more fleshed out, a dedicated `CombatScene.js` will be added th
 
 ---
 
-## 10. Roguelite Progression
+## 10. Weapon System
+
+### Overview
+
+Every combat-capable unit equips a **weapon** that adds its **Might** to the attacker's offensive stat (Pow for physical, Moj for magic) before the damage formula runs. Units without weapons still attack using base stats only.
+
+Damage formula (unchanged structure):
+- **Physical:** `max(1, (Pow + Might) − (Def + TILE_DEF))`
+- **Magic:** `max(1, (Moj + Might) − MDef)` *(ignores terrain)*
+
+The equipped weapon's type (`isMagic: true` on tomes/dark magic) now determines whether a unit attacks physically or magically, overriding the old `Moj > Pow` auto-select. Weaponless enemies still use stat comparison as before.
+
+Each weapon has a **uses** counter. One use is consumed per combat engagement (attacker and counter-attacker each consume one use). When a weapon reaches 0 uses it is removed from the unit's inventory; the next non-staff weapon auto-equips.
+
+---
+
+### Basic Weapon Tiers
+
+Three tiers apply to all physical weapons and bows. Higher tiers hit harder but have fewer uses.
+
+#### Swords *(physical, range 1)*
+
+| Name | Tier | Might | Hit | Uses |
+|---|---|---|---|---|
+| Wood Sword | Wood | 2 | 90 | 40 |
+| Bronze Sword | Bronze | 4 | 90 | 25 |
+| Iron Sword | Iron | 6 | 85 | 20 |
+
+#### Lances *(physical, range 1)*
+
+| Name | Tier | Might | Hit | Uses |
+|---|---|---|---|---|
+| Wood Lance | Wood | 3 | 80 | 35 |
+| Bronze Lance | Bronze | 5 | 80 | 25 |
+| Iron Lance | Iron | 7 | 75 | 20 |
+
+#### Axes *(physical, range 1)*
+
+| Name | Tier | Might | Hit | Uses |
+|---|---|---|---|---|
+| Wood Axe | Wood | 4 | 70 | 35 |
+| Bronze Axe | Bronze | 6 | 70 | 25 |
+| Iron Axe | Iron | 8 | 65 | 20 |
+
+#### Bows *(physical, range 2 — **[TBD]** range system)*
+
+| Name | Tier | Might | Hit | Uses |
+|---|---|---|---|---|
+| Wood Bow | Wood | 2 | 85 | 35 |
+| Bronze Bow | Bronze | 4 | 85 | 25 |
+| Iron Bow | Iron | 6 | 80 | 20 |
+
+> **Note:** Bow range (2, cannot attack adjacent) requires a ranged attack system that is not yet implemented. Bows are defined in data but behave as melee until that system is added.
+
+---
+
+### Lord Starting Weapons
+
+Lords start each run with unique weapons. These weapons are stronger than common gear but have limited uses.
+
+#### LORD I · Pickpocket — *Serpent's Bone*
+
+| Stat | Value |
+|---|---|
+| Type | Sword (Iron tier equivalent) |
+| Might | 6 |
+| Hit | 85 |
+| Crit | 5 |
+| Uses | 15 |
+| **Special** | **Execute** — once per weapon, can instantly KO any non-boss enemy as an option instead of dealing normal damage. **[TBD — requires weapon action menu UI]** |
+
+The execute charge is stored on the weapon instance (`effect.charges`). When UI is added, the player will be able to choose whether to trigger it rather than it firing automatically.
+
+---
+
+#### LORD II · Astronomer — Starting Arsenal
+
+The Astronomer begins with **four** weapons. Only the first non-staff weapon (Flame) auto-equips for combat; the others require a weapon-selection UI to use. **[TBD — weapon switch UI]**
+
+##### Heal *(Staff)*
+
+| Stat | Value |
+|---|---|
+| Type | Staff |
+| Heals | 10 HP |
+| Uses | 5 |
+| **Special** | Restores HP to an adjacent ally. Cannot be used offensively. **[TBD — requires ally units and staff-action UI]** |
+
+##### Flame *(Elemental Tome — default equipped)*
+
+| Stat | Value |
+|---|---|
+| Type | Tome (Bronze tier) |
+| Might | 5 |
+| Hit | 85 |
+| Crit | 5 |
+| Uses | 20 |
+| **On-hit** | **40% chance to inflict Burn** — halves the target's physical damage output (Pow × ½) until end of map |
+
+##### Smite *(Heaven Tome)*
+
+| Stat | Value |
+|---|---|
+| Type | Tome (Bronze tier) |
+| Might | 25 |
+| Hit | 70 |
+| Crit | 0 |
+| Uses | 3 |
+| **Special** | Devastatingly high Might — designed to one-shot any enemy (including the boss) during the first three maps at base Moj 11. The 3-use limit makes it a decisive weapon to save for the right moment. |
+
+##### Drought *(Wicked/Dark Magic)*
+
+| Stat | Value |
+|---|---|
+| Type | Dark (Wood tier damage) |
+| Might | 2 |
+| Hit | 85 |
+| Crit | 0 |
+| Uses | 25 |
+| **On-hit** | **100% chance to inflict Poison** — deals 2 HP per turn DoT, and halves the target's Moj (magic offense) and Def (physical defense) for the rest of the map |
+
+---
+
+#### LORD III · Stud Master — Starting Weapons
+
+##### Swift Blade *(Bronze Sword — default equipped)*
+
+| Stat | Value |
+|---|---|
+| Type | Sword (Bronze tier) |
+| Might | 4 |
+| Hit | 90 |
+| Crit | 0 |
+| Uses | 20 |
+| **Special** | **2× damage against axe-wielding enemies** |
+
+##### Piercer *(Bronze Lance)*
+
+| Stat | Value |
+|---|---|
+| Type | Lance (Bronze tier) |
+| Might | 5 |
+| Hit | 80 |
+| Crit | 0 |
+| Uses | 20 |
+| **Special** | **3× damage against Bulwark-class enemies** — makes the Stud Master a direct counter to the boss General (a Bulwark) |
+
+---
+
+### Status Effects
+
+Status effects are applied by certain weapons on hit and persist for the remainder of the map. **[TBD]** A cure system (staff spells, item use) is not yet implemented.
+
+| Status | Source | Effect on afflicted unit |
+|---|---|---|
+| **Burn** | Flame (40% chance on hit) | Physical power halved (Pow × ½) when calculating damage dealt |
+| **Poison** | Drought (100% chance on hit) | Magic power halved (Moj × ½) when attacking; physical defense halved (Def × ½) when defending; **+2 HP damage per turn** at the start of each phase |
+
+Poison DoT is applied to all living units of a faction at the moment their phase begins. Poison can reduce a unit to 0 HP (it can kill). Burn cannot kill on its own.
+
+---
+
+### [TBD] Future Weapon Mechanics
+
+- **Weapon selection UI** — inventory screen or in-map menu to switch between equipped weapons (required before Smite, Drought, and Heal can be used by the Astronomer; also needed for Stud Master to switch between Swift Blade and Piercer)
+- **Execute UI** — action-menu trigger for Serpent's Bone's one-time execute charge
+- **Bow range** — bows attack at exactly range 2 and cannot retaliate at range 1; requires ranged attack system
+- **Hit rate / miss system** — the `hit` stat on every weapon is tracked but not yet checked; all attacks currently always connect
+- **Crit system** — `crit` stat tracked but not used; crits should deal 3× damage (classic FE)
+- **Weapon weight / Constitution** — heavier weapons reduce effective speed; relevant once weapon variety grows
+- **Weapon triangle** — Swords beat Axes, Axes beat Lances, Lances beat Swords (give/take +1 Def and +15 Hit on favored side)
+- **Status cure** — staff spells or items that remove Burn/Poison
+
+---
+
+## 11. Roguelite Progression
 
 **[TBD]** — Core loop not yet designed. Questions to resolve:
 
@@ -505,7 +680,7 @@ When the game is more fleshed out, a dedicated `CombatScene.js` will be added th
 
 ---
 
-## 11. Controls Reference
+## 12. Controls Reference
 
 | Input | Action |
 |---|---|

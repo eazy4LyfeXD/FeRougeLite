@@ -89,6 +89,7 @@ class GameMapScene extends Phaser.Scene {
     const ld   = LORD_DEFS[this.saveData.selectedLord];
 
     // Lord only — player starts each map alone
+    const lordWeapons = (ld.startingWeapons || []).map(key => makeWeapon(key));
     this.units.push(new Unit({
       name: ld.label, faction: FACTION.PLAYER,
       gx: 1, gy: midY,
@@ -96,6 +97,7 @@ class GameMapScene extends Phaser.Scene {
       level: 1, growths: ld.growths, moveCosts: ld.moveCosts,
       className: ld.className,
       color: ld.color, symbol: '♞', isLord: true,
+      weapons: lordWeapons,
     }));
 
     // Enemies (random positions on right half)
@@ -247,23 +249,40 @@ class GameMapScene extends Phaser.Scene {
     const tDef = TILE_DEF[this.grid[defender.gy][defender.gx]];
     const { dmg, doubles } = attacker.calcDamage(defender, tDef);
 
-    // First hit
+    // First hit (+ optional speed double)
     defender.hp -= dmg;
-    this.battleLog = [`${attacker.name} → ${defender.name}: ${dmg} dmg`];
-
-    // Speed-doubling: second hit before counter if attacker SP ≥ defender SP + 4
+    let logLine = `${attacker.name} → ${defender.name}: ${dmg} dmg`;
     if (doubles && defender.alive) {
       defender.hp -= dmg;
-      this.battleLog[0] += ` ×2`;
+      logLine += ' ×2';
     }
 
-    // Counter-attack if defender still alive and adjacent
+    // On-hit weapon effects (burn / poison)
+    const aw = attacker.equippedWeapon;
+    if (aw && aw.effect) {
+      const fx = aw.effect;
+      if (fx.type === 'burn' && !defender.hasStatus('burn') && Math.random() * 100 < fx.chance) {
+        defender.addStatus('burn');
+        logLine += ' [BURN]';
+      } else if (fx.type === 'poison' && !defender.hasStatus('poison') && Math.random() * 100 < fx.chance) {
+        defender.addStatus('poison');
+        logLine += ' [POISON]';
+      }
+    }
+
+    // Consume one weapon use
+    attacker.decrementWeaponUses();
+
+    this.battleLog = [logLine];
+
+    // Counter-attack if defender survived and is adjacent
     if (defender.alive) {
       const dist = Math.abs(attacker.gx - defender.gx) + Math.abs(attacker.gy - defender.gy);
       if (dist === 1) {
         const aTDef = TILE_DEF[this.grid[attacker.gy][attacker.gx]];
         const { dmg: cdmg } = defender.calcDamage(attacker, aTDef);
         attacker.hp -= cdmg;
+        defender.decrementWeaponUses();
         this.battleLog.push(`${defender.name} → ${attacker.name}: ${cdmg} dmg (counter)`);
       }
     }
@@ -298,9 +317,14 @@ class GameMapScene extends Phaser.Scene {
   // ═══════════════════════════════════════════════════════════════════════════
   _endPlayerTurn() {
     this._deselect();
-    this.phase      = PHASE.ENEMY_TURN;
-    this.statusMsg  = 'Enemy Phase';
-    this.statusT    = 99999;
+    this.phase     = PHASE.ENEMY_TURN;
+    this.statusMsg = 'Enemy Phase';
+    this.statusT   = 99999;
+
+    // Poison DoT on all living enemies at the start of their phase
+    this._tickStatusEffects(FACTION.ENEMY);
+    if (this.phase !== PHASE.ENEMY_TURN) return; // all enemies wiped by poison
+
     this.enemyQueue = this.units.filter(u => u.faction === FACTION.ENEMY && u.alive);
     this.enemyIdx   = 0;
     this.enemyDelay = 600;
@@ -311,12 +335,15 @@ class GameMapScene extends Phaser.Scene {
     if (this.enemyDelay > 0) return;
 
     if (this.enemyIdx >= this.enemyQueue.length) {
-      // Enemy turn over
+      // Enemy turn over — reset player units and start next player phase
       this.units.forEach(u => { if (u.faction === FACTION.PLAYER) u.moved = false; });
       this.turnNumber++;
       this.phase     = PHASE.PLAYER_TURN;
       this.statusMsg = `Player Phase – Turn ${this.turnNumber}`;
       this.statusT   = 2000;
+
+      // Poison DoT on all living player units at the start of their phase
+      this._tickStatusEffects(FACTION.PLAYER);
       return;
     }
 
@@ -647,6 +674,22 @@ class GameMapScene extends Phaser.Scene {
   // ═══════════════════════════════════════════════════════════════════════════
   //  HELPERS
   // ═══════════════════════════════════════════════════════════════════════════
+
+  // Apply poison DoT to all living units of the given faction; show in battle log.
+  _tickStatusEffects(faction) {
+    const msgs = [];
+    this.units.filter(u => u.faction === faction && u.alive).forEach(u => {
+      const dmg = u.tickPoison();
+      if (dmg > 0) msgs.push(`${u.name}: ${dmg} poison`);
+    });
+    if (msgs.length > 0) {
+      this.battleLog = msgs.slice(0, 2);
+      this.logT = 1500;
+      this._removeDead();
+      this._checkEndCondition();
+    }
+  }
+
   _unitAt(x, y) {
     return this.units.find(u => u.gx === x && u.gy === y && u.alive) || null;
   }

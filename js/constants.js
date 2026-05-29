@@ -159,6 +159,47 @@ const C = {
   WHITE:    '#dcdccc',
 };
 
+// ─── Weapon Data ──────────────────────────────────────────────────────────────
+// Templates only — call makeWeapon(key) to get a live instance for a unit.
+// Fields: name, type, tier, might, hit, crit, uses, maxUses, range, isMagic?,
+//         isStaff?, healAmount?, effect?
+// effect types: 'burn' {chance}, 'poison' {chance},
+//               'effective' {vsClass|vsWeapon, multiplier},
+//               'execute' {charges}  [UI not yet implemented]
+const WEAPON_DATA = {
+  // ── Swords ──────────────────────────────────────────────────────────────────
+  WOOD_SWORD:   { name: 'Wood Sword',   type: 'sword', tier: 'wood',    might: 2, hit: 90, crit: 0, uses: 40, maxUses: 40, range: [1,1] },
+  BRONZE_SWORD: { name: 'Bronze Sword', type: 'sword', tier: 'bronze',  might: 4, hit: 90, crit: 0, uses: 25, maxUses: 25, range: [1,1] },
+  IRON_SWORD:   { name: 'Iron Sword',   type: 'sword', tier: 'iron',    might: 6, hit: 85, crit: 0, uses: 20, maxUses: 20, range: [1,1] },
+  // ── Lances ──────────────────────────────────────────────────────────────────
+  WOOD_LANCE:   { name: 'Wood Lance',   type: 'lance', tier: 'wood',    might: 3, hit: 80, crit: 0, uses: 35, maxUses: 35, range: [1,1] },
+  BRONZE_LANCE: { name: 'Bronze Lance', type: 'lance', tier: 'bronze',  might: 5, hit: 80, crit: 0, uses: 25, maxUses: 25, range: [1,1] },
+  IRON_LANCE:   { name: 'Iron Lance',   type: 'lance', tier: 'iron',    might: 7, hit: 75, crit: 0, uses: 20, maxUses: 20, range: [1,1] },
+  // ── Axes ────────────────────────────────────────────────────────────────────
+  WOOD_AXE:     { name: 'Wood Axe',     type: 'axe',   tier: 'wood',    might: 4, hit: 70, crit: 0, uses: 35, maxUses: 35, range: [1,1] },
+  BRONZE_AXE:   { name: 'Bronze Axe',   type: 'axe',   tier: 'bronze',  might: 6, hit: 70, crit: 0, uses: 25, maxUses: 25, range: [1,1] },
+  IRON_AXE:     { name: 'Iron Axe',     type: 'axe',   tier: 'iron',    might: 8, hit: 65, crit: 0, uses: 20, maxUses: 20, range: [1,1] },
+  // ── Bows ────────────────────────────────────────────────────────────────────
+  WOOD_BOW:     { name: 'Wood Bow',     type: 'bow',   tier: 'wood',    might: 2, hit: 85, crit: 0, uses: 35, maxUses: 35, range: [2,2] },
+  BRONZE_BOW:   { name: 'Bronze Bow',   type: 'bow',   tier: 'bronze',  might: 4, hit: 85, crit: 0, uses: 25, maxUses: 25, range: [2,2] },
+  IRON_BOW:     { name: 'Iron Bow',     type: 'bow',   tier: 'iron',    might: 6, hit: 80, crit: 0, uses: 20, maxUses: 20, range: [2,2] },
+  // ── Tomes & Dark Magic (isMagic — uses Moj stat for attack) ─────────────────
+  FLAME:   { name: 'Flame',   type: 'tome', tier: 'bronze', isMagic: true, might:  5, hit: 85, crit: 5, uses: 20, maxUses: 20, range: [1,2], effect: { type: 'burn',   chance: 40  } },
+  SMITE:   { name: 'Smite',   type: 'tome', tier: 'bronze', isMagic: true, might: 25, hit: 70, crit: 0, uses:  3, maxUses:  3, range: [1,2] },
+  DROUGHT: { name: 'Drought', type: 'dark', tier: 'wood',   isMagic: true, might:  2, hit: 85, crit: 0, uses: 25, maxUses: 25, range: [1,2], effect: { type: 'poison', chance: 100 } },
+  // ── Staves (support only — isStaff; skipped in auto-equip for combat) ───────
+  HEAL: { name: 'Heal', type: 'staff', tier: 'bronze', isStaff: true, might: 0, hit: 100, crit: 0, uses: 5, maxUses: 5, range: [1,1], healAmount: 10 },
+  // ── Special lord weapons ─────────────────────────────────────────────────────
+  SERPENTS_BONE: { name: "Serpent's Bone", type: 'sword', tier: 'special', might:  6, hit: 85, crit: 5, uses: 15, maxUses: 15, range: [1,1], effect: { type: 'execute',   charges: 1 } },
+  PIERCER:       { name: 'Piercer',        type: 'lance', tier: 'special', might:  5, hit: 80, crit: 0, uses: 20, maxUses: 20, range: [1,1], effect: { type: 'effective', vsClass: 'Bulwark', multiplier: 3 } },
+  SWIFT_BLADE:   { name: 'Swift Blade',    type: 'sword', tier: 'special', might:  4, hit: 90, crit: 0, uses: 20, maxUses: 20, range: [1,1], effect: { type: 'effective', vsWeapon: 'axe',    multiplier: 2 } },
+};
+
+// Clone a weapon template into a fresh instance (each unit tracks uses independently).
+function makeWeapon(key) {
+  return Object.assign({}, WEAPON_DATA[key]);
+}
+
 // Lord definitions — base stats, growth rates, class identity, and movement costs
 const LORD_DEFS = [
   {
@@ -167,6 +208,7 @@ const LORD_DEFS = [
     stats:   { hp: 20, pow: 8,  moj: 2,  sp: 7, lck: 5, def: 5, mdef: 4, move: 5 },
     growths: { hp: 75, pow: 50, moj: 15, sp: 55, lck: 40, def: 40, mdef: 30 },
     moveCosts: CLASS_MOVE_COSTS.PICKPOCKET,
+    startingWeapons: ['SERPENTS_BONE'],
   },
   {
     label: 'LORD II', className: 'Astronomer', color: 0x6a3a9a, light: '#b080f0',
@@ -174,6 +216,7 @@ const LORD_DEFS = [
     stats:   { hp: 17, pow: 3,  moj: 11, sp: 7, lck: 6, def: 3, mdef: 8, move: 5 },
     growths: { hp: 60, pow: 15, moj: 70, sp: 55, lck: 50, def: 20, mdef: 65 },
     moveCosts: CLASS_MOVE_COSTS.NORMAL,
+    startingWeapons: ['FLAME', 'SMITE', 'DROUGHT', 'HEAL'],
   },
   {
     label: 'LORD III', className: 'Stud Master', color: 0x3a8a50, light: '#80d090',
@@ -181,5 +224,6 @@ const LORD_DEFS = [
     stats:   { hp: 22, pow: 10, moj: 1,  sp: 6, lck: 4, def: 8, mdef: 3, move: 7 },
     growths: { hp: 80, pow: 60, moj: 5,  sp: 45, lck: 35, def: 55, mdef: 20 },
     moveCosts: CLASS_MOVE_COSTS.CAVALRY,
+    startingWeapons: ['SWIFT_BLADE', 'PIERCER'],
   },
 ];

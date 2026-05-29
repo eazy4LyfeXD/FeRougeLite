@@ -7,6 +7,7 @@ class Unit {
     color, symbol,
     level = 1, growths = null, moveCosts = null,
     className = '', isLord = false, isBoss = false,
+    weapons = [],
   }) {
     this.name    = name;
     this.faction = faction;
@@ -31,8 +32,12 @@ class Unit {
     this.symbol    = symbol;
     this.className = className;
     this.isLord    = isLord;
-    this.isBoss = isBoss;
-    this.moved  = false;
+    this.isBoss    = isBoss;
+    this.moved     = false;
+
+    this.weapons        = weapons.slice();
+    this.equippedWeapon = this.weapons.find(w => !w.isStaff) || this.weapons[0] || null;
+    this.statusEffects  = [];
   }
 
   get alive() { return this.hp > 0; }
@@ -53,19 +58,66 @@ class Unit {
     return gained; // e.g. { hp: true, pow: true }
   }
 
-  // ── Damage calculation ─────────────────────────────────────────────────────
-  // Auto-selects physical (Pow vs Def) or magic (Moj vs MDef) based on which
-  // of the attacker's offensive stats is higher.
-  // tileDef is only applied to physical attacks (magic ignores terrain).
-  // Returns { dmg, isMagic, doubles } — doubles = true if SP advantage ≥ 4.
-  calcDamage(defender, tileDef = 0) {
-    const isMagic = this.moj > this.pow;
-    let dmg;
-    if (isMagic) {
-      dmg = Math.max(1, this.moj - defender.mdef);
-    } else {
-      dmg = Math.max(1, this.pow - (defender.def + tileDef));
+  // ── Status helpers ─────────────────────────────────────────────────────────
+  hasStatus(type) { return this.statusEffects.some(s => s.type === type); }
+  addStatus(type) { if (!this.hasStatus(type)) this.statusEffects.push({ type }); }
+
+  // Apply poison DOT at the start of this unit's phase. Returns damage dealt.
+  tickPoison() {
+    if (!this.hasStatus('poison')) return 0;
+    const dmg = 2;
+    this.hp -= dmg;
+    return dmg;
+  }
+
+  // Reduce the equipped weapon's uses by 1; remove it if depleted.
+  decrementWeaponUses() {
+    const w = this.equippedWeapon;
+    if (!w || w.isStaff) return;
+    w.uses--;
+    if (w.uses <= 0) {
+      this.weapons = this.weapons.filter(x => x !== w);
+      this.equippedWeapon = this.weapons.find(wr => !wr.isStaff) || this.weapons[0] || null;
     }
+  }
+
+  // ── Damage calculation ─────────────────────────────────────────────────────
+  // Attack type comes from the equipped weapon (isMagic flag); falls back to
+  // stat comparison for weaponless units (enemies).
+  // tileDef applies only to physical attacks.
+  // Returns { dmg, isMagic, doubles }.
+  calcDamage(defender, tileDef = 0) {
+    const w       = this.equippedWeapon;
+    const isMagic = w ? !!w.isMagic : this.moj > this.pow;
+
+    // Offensive stat — halved by relevant status debuff
+    let atkStat = isMagic ? this.moj : this.pow;
+    if ( isMagic && this.hasStatus('poison')) atkStat = Math.floor(atkStat / 2);
+    if (!isMagic && this.hasStatus('burn'))   atkStat = Math.floor(atkStat / 2);
+
+    // Defensive stat — poison halves defender's Def on physical hits
+    let defStat;
+    if (isMagic) {
+      defStat = defender.mdef;
+    } else {
+      const baseDef = (defender.hasStatus && defender.hasStatus('poison'))
+        ? Math.floor(defender.def / 2)
+        : defender.def;
+      defStat = baseDef + tileDef;
+    }
+
+    let dmg = Math.max(1, (atkStat + (w ? w.might : 0)) - defStat);
+
+    // Weapon type-effectiveness multiplier (Piercer vs Bulwark, Swift Blade vs axe)
+    if (w && w.effect && w.effect.type === 'effective') {
+      const fx = w.effect;
+      if (fx.vsClass && defender.className === fx.vsClass) {
+        dmg = Math.floor(dmg * fx.multiplier);
+      } else if (fx.vsWeapon && defender.equippedWeapon && defender.equippedWeapon.type === fx.vsWeapon) {
+        dmg = Math.floor(dmg * fx.multiplier);
+      }
+    }
+
     const doubles = this.sp >= defender.sp + 4;
     return { dmg, isMagic, doubles };
   }
