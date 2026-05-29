@@ -12,8 +12,13 @@ class StatusScene extends Phaser.Scene {
   constructor() { super({ key: 'Status' }); }
 
   init(data) {
-    this.unit      = data.unit;
-    this.callerKey = data.callerKey || 'GameMap';
+    this.unit            = data.unit;
+    this.callerKey       = data.callerKey       || 'GameMap';
+    this.startView       = data.startView       || 'stats';
+    this.startItemCursor = data.startItemCursor || 0;
+    // When launched from the inventory menu we go straight to item detail and
+    // close (not back to stats) on any dismiss key.
+    this.directClose     = data.startView === 'item';
   }
 
   // ── Layout constants ───────────────────────────────────────────────────────
@@ -28,8 +33,8 @@ class StatusScene extends Phaser.Scene {
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
   create() {
-    this.view       = 'stats';
-    this.itemCursor = 0;
+    this.view       = this.startView;
+    this.itemCursor = this.startItemCursor;
     this.scrollOff  = 0;
 
     this.gfx     = this.add.graphics();
@@ -337,12 +342,17 @@ class StatusScene extends Phaser.Scene {
   update() {
     const jd = k => Phaser.Input.Keyboard.JustDown(k);
 
-    // Item detail view — any confirm/cancel returns to stats
+    // Item detail view — dismiss key goes back to stats (or closes directly if
+    // this scene was launched straight into item view from the inventory menu)
     if (this.view === 'item') {
       if (jd(this.keys.e) || jd(this.keys.confirm) || jd(this.keys.cancel) ||
           jd(this.keys.esc) || jd(this.keys.enter)) {
-        this.view = 'stats';
-        this._redraw();
+        if (this.directClose) {
+          this._close();
+        } else {
+          this.view = 'stats';
+          this._redraw();
+        }
       }
       return;
     }

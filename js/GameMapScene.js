@@ -32,12 +32,16 @@ class GameMapScene extends Phaser.Scene {
     this.xpAnim = null;
 
     // Action-menu / combat-preview state machine
-    this.gameState      = 'idle';   // 'idle'|'selected'|'menu'|'targeting'
-    this.menuOptions    = [];       // strings shown in action menu
+    // gameState: 'idle'|'selected'|'menu'|'weapon-select'|'items'|'item-action'|'targeting'
+    this.gameState      = 'idle';
+    this.menuOptions    = [];
     this.menuCursor     = 0;
-    this.preActionGx    = 0;        // unit gx before last move (for cancel)
+    this.preActionGx    = 0;
     this.preActionGy    = 0;
-    this.forecastTarget = null;     // enemy being previewed during targeting
+    this.forecastTarget = null;
+    this.invCursor      = 0;        // cursor in inventory / weapon-select lists
+    this.itemActCursor  = 0;        // cursor in item action sub-menu
+    this.itemActOptions = [];       // ['USE','DROP'] or ['EQUIP','DROP']
 
     this.blinkOn  = true;
     this.blinkT   = 0;
@@ -183,14 +187,23 @@ class GameMapScene extends Phaser.Scene {
 
     if (this.phase === PHASE.ENEMY_TURN) return;
 
-    // Action menu: Up/Down navigate options; X confirms; Z cancels back
-    if (this.gameState === 'menu') {
-      if (jd(this.keys.up)   || jd(this.keys.w))
-        this.menuCursor = Math.max(0, this.menuCursor - 1);
-      if (jd(this.keys.down) || jd(this.keys.s))
-        this.menuCursor = Math.min(this.menuOptions.length - 1, this.menuCursor + 1);
+    // All list-mode states intercept Up/Down for navigation
+    if (['menu', 'weapon-select', 'items', 'item-action'].includes(this.gameState)) {
+      if (jd(this.keys.up)   || jd(this.keys.w)) this._listNavigate(-1);
+      if (jd(this.keys.down) || jd(this.keys.s)) this._listNavigate(1);
       if (jd(this.keys.confirm) || jd(this.keys.enter)) this._onConfirm();
       if (jd(this.keys.cancel)  || jd(this.keys.esc))   this._onCancel();
+      // In inventory, E opens the item description overlay
+      if (this.gameState === 'items' && jd(this.keys.e)) {
+        const items = this.selectedUnit?.weapons || [];
+        if (items.length > 0) {
+          this.scene.launch('Status', {
+            unit: this.selectedUnit, callerKey: 'GameMap',
+            startView: 'item', startItemCursor: this.invCursor,
+          });
+          this.scene.pause();
+        }
+      }
       return;
     }
 
@@ -256,6 +269,27 @@ class GameMapScene extends Phaser.Scene {
         this._confirmMenuOption();
         break;
 
+      case 'weapon-select': {
+        const cw = this._getCombatWeapons();
+        if (cw[this.invCursor]) this.selectedUnit.equippedWeapon = cw[this.invCursor];
+        this._enterTargeting();
+        break;
+      }
+
+      case 'items': {
+        const item = (this.selectedUnit?.weapons || [])[this.invCursor];
+        if (item) {
+          this.itemActOptions = item.isConsumable ? ['USE', 'DROP'] : ['EQUIP', 'DROP'];
+          this.itemActCursor  = 0;
+          this.gameState      = 'item-action';
+        }
+        break;
+      }
+
+      case 'item-action':
+        this._confirmItemAction();
+        break;
+
       case 'targeting':
         if (u && u.faction === FACTION.ENEMY && this.attackRange.has(key)) {
           this._doAttack(this.selectedUnit, u);
@@ -277,6 +311,16 @@ class GameMapScene extends Phaser.Scene {
         this.attackRange = this.selectedUnit.computeAttackRange(this.moveRange);
         this.gameState   = 'selected';
         break;
+      case 'weapon-select':
+        this._openMenu();
+        break;
+      case 'items':
+        this._openMenu();
+        break;
+      case 'item-action':
+        this.gameState     = 'items';
+        this.itemActCursor = 0;
+        break;
       case 'targeting':
         this.forecastTarget = null;
         this._openMenu();
@@ -292,31 +336,30 @@ class GameMapScene extends Phaser.Scene {
       u.faction === FACTION.ENEMY && u.alive &&
       this.attackRange.has(`${u.gx},${u.gy}`)
     );
-    this.menuOptions = hasTarget ? ['ATTACK', 'WAIT'] : ['WAIT'];
-    this.menuCursor  = 0;
-    this.gameState   = 'menu';
+    const hasItems = (this.selectedUnit?.weapons || []).length > 0;
+    this.menuOptions = [
+      ...(hasTarget ? ['ATTACK'] : []),
+      ...(hasItems  ? ['ITEMS']  : []),
+      'WAIT',
+    ];
+    this.menuCursor = 0;
+    this.gameState  = 'menu';
   }
 
   _confirmMenuOption() {
     const opt = this.menuOptions[this.menuCursor];
     if (opt === 'ATTACK') {
-      this.gameState = 'targeting';
-      // Auto-place cursor on nearest attackable enemy
-      let nearest = null, bestD = 9999;
-      for (const u of this.units) {
-        if (u.faction === FACTION.ENEMY && u.alive &&
-            this.attackRange.has(`${u.gx},${u.gy}`)) {
-          const d = Math.abs(u.gx - this.selectedUnit.gx) +
-                    Math.abs(u.gy - this.selectedUnit.gy);
-          if (d < bestD) { bestD = d; nearest = u; }
-        }
+      const cw = this._getCombatWeapons();
+      if (cw.length > 1) {
+        // Let the player choose which weapon to use
+        this.invCursor = Math.max(0, cw.indexOf(this.selectedUnit.equippedWeapon));
+        this.gameState = 'weapon-select';
+      } else {
+        this._enterTargeting();
       }
-      if (nearest) {
-        this.cursorX = nearest.gx;
-        this.cursorY = nearest.gy;
-        this._computeCamera();
-        this.forecastTarget = nearest;
-      }
+    } else if (opt === 'ITEMS') {
+      this.invCursor = 0;
+      this.gameState = 'items';
     } else {
       // WAIT
       this.selectedUnit.moved = true;
@@ -360,6 +403,127 @@ class GameMapScene extends Phaser.Scene {
     this.gameState      = 'idle';
     this.menuOptions    = [];
     this.menuCursor     = 0;
+    this.invCursor      = 0;
+    this.itemActCursor  = 0;
+    this.itemActOptions = [];
+  }
+
+  // ── Inventory helpers ──────────────────────────────────────────────────────
+
+  // Navigate any list-mode cursor by delta (-1 or +1)
+  _listNavigate(dir) {
+    const len = this._currentListLength();
+    if (len === 0) return;
+    const key = this._cursorKey();
+    this[key] = Math.max(0, Math.min(len - 1, this[key] + dir));
+  }
+
+  _cursorKey() {
+    if (this.gameState === 'item-action') return 'itemActCursor';
+    if (this.gameState === 'menu')        return 'menuCursor';
+    return 'invCursor';   // weapon-select, items
+  }
+
+  _currentListLength() {
+    if (this.gameState === 'menu')          return this.menuOptions.length;
+    if (this.gameState === 'weapon-select') return this._getCombatWeapons().length;
+    if (this.gameState === 'items')         return (this.selectedUnit?.weapons || []).length;
+    if (this.gameState === 'item-action')   return this.itemActOptions.length;
+    return 0;
+  }
+
+  // Weapons the unit can equip for combat (not staves, not consumables)
+  _getCombatWeapons() {
+    return (this.selectedUnit?.weapons || []).filter(w => !w.isStaff && !w.isConsumable);
+  }
+
+  // Enter targeting mode and auto-snap cursor to nearest attackable enemy
+  _enterTargeting() {
+    this.gameState      = 'targeting';
+    this.forecastTarget = null;
+    let nearest = null, bestD = 9999;
+    for (const u of this.units) {
+      if (u.faction === FACTION.ENEMY && u.alive &&
+          this.attackRange.has(`${u.gx},${u.gy}`)) {
+        const d = Math.abs(u.gx - this.selectedUnit.gx) +
+                  Math.abs(u.gy - this.selectedUnit.gy);
+        if (d < bestD) { bestD = d; nearest = u; }
+      }
+    }
+    if (nearest) {
+      this.cursorX = nearest.gx;
+      this.cursorY = nearest.gy;
+      this._computeCamera();
+      this.forecastTarget = nearest;
+    }
+  }
+
+  // Execute the selected action in the item-action sub-menu
+  _confirmItemAction() {
+    const items = this.selectedUnit?.weapons || [];
+    const item  = items[this.invCursor];
+    if (!item) return;
+    const opt = this.itemActOptions[this.itemActCursor];
+
+    if (opt === 'USE' && item.isConsumable) {
+      if (item.healAmount) {
+        this.selectedUnit.hp = Math.min(
+          this.selectedUnit.maxHp, this.selectedUnit.hp + item.healAmount);
+      }
+      item.uses--;
+      if (item.uses <= 0) {
+        this.selectedUnit.weapons = items.filter(w => w !== item);
+        if (this.selectedUnit.equippedWeapon === item) {
+          this.selectedUnit.equippedWeapon =
+            this.selectedUnit.weapons.find(w => !w.isStaff && !w.isConsumable)
+            || this.selectedUnit.weapons[0] || null;
+        }
+      }
+      this.selectedUnit.moved = true;
+      this.battleLog = [`${this.selectedUnit.name}: used ${item.name}`];
+      this.logT = 1800;
+      this._resetSelection();
+
+    } else if (opt === 'EQUIP') {
+      this.selectedUnit.equippedWeapon = item;
+      this.gameState     = 'menu';
+      this.itemActCursor = 0;
+
+    } else if (opt === 'DROP') {
+      this.selectedUnit.weapons = items.filter(w => w !== item);
+      if (this.selectedUnit.equippedWeapon === item) {
+        this.selectedUnit.equippedWeapon =
+          this.selectedUnit.weapons.find(w => !w.isStaff && !w.isConsumable)
+          || this.selectedUnit.weapons[0] || null;
+      }
+      this.invCursor     = Math.min(this.invCursor, Math.max(0, this.selectedUnit.weapons.length - 1));
+      this.itemActCursor = 0;
+      this.gameState     = this.selectedUnit.weapons.length > 0 ? 'items' : 'menu';
+    }
+  }
+
+  // Bounding rect for the inventory / weapon-select popup
+  _invRect() {
+    if (!this.selectedUnit) return { x: 4, y: 4, w: 120, h: 24 };
+    const { x: sx, y: sy } = this._screenPos(this.selectedUnit.gx, this.selectedUnit.gy);
+    const list = this.gameState === 'weapon-select'
+      ? this._getCombatWeapons()
+      : (this.selectedUnit.weapons || []);
+    const w = 120, h = Math.max(1, list.length) * 10 + 4;
+    let x = sx + TILE_S + 1;
+    if (x + w > GAME_W) x = sx - w - 1;
+    let y = sy - 2;
+    if (y + h > GAME_H - UI_H) y = GAME_H - UI_H - h - 2;
+    return { x: Math.max(0, x), y: Math.max(0, y), w, h };
+  }
+
+  // Bounding rect for the item-action sub-menu (appears beside the selected row)
+  _itemActRect(inv) {
+    const w = 50, h = this.itemActOptions.length * 10 + 4;
+    let x = inv.x + inv.w + 1;
+    if (x + w > GAME_W) x = inv.x - w - 1;
+    const y = Math.min(inv.y + 2 + this.invCursor * 10, Math.max(0, GAME_H - UI_H - h - 2));
+    return { x: Math.max(0, x), y, w, h };
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -588,6 +752,16 @@ class GameMapScene extends Phaser.Scene {
       this.add.text(0, 0, '', s(6, C.TEXT)).setDepth(6),
     ];
     this.txtMenuItems.forEach(t => t.setVisible(false));
+
+    // Inventory / weapon-select list (up to 5 rows)
+    this.txtInvItems = Array.from({ length: 5 }, () =>
+      this.add.text(0, 0, '', s(5, C.TEXT)).setDepth(6).setVisible(false)
+    );
+
+    // Item action sub-menu (USE/EQUIP + DROP)
+    this.txtItemAct = Array.from({ length: 2 }, () =>
+      this.add.text(0, 0, '', s(5, C.TEXT)).setDepth(7).setVisible(false)
+    );
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -776,6 +950,27 @@ class GameMapScene extends Phaser.Scene {
       g.strokeLineShape(new Phaser.Geom.Line(GAME_W/2, fy + 2, GAME_W/2, fy + 37));
     }
 
+    // ── Inventory / weapon-select panel ────────────────────────────────────
+    if (['weapon-select', 'items', 'item-action'].includes(this.gameState) && this.selectedUnit) {
+      const r = this._invRect();
+      g.fillStyle(C.PANEL_BG, 0.96);
+      g.fillRect(r.x, r.y, r.w, r.h);
+      g.lineStyle(1.5, C.PANEL_BD, 1);
+      g.strokeRect(r.x, r.y, r.w, r.h);
+      g.fillStyle(C.SEL_BD, 0.2);
+      g.fillRect(r.x + 1, r.y + 2 + this.invCursor * 10, r.w - 2, 9);
+
+      if (this.gameState === 'item-action') {
+        const ar = this._itemActRect(r);
+        g.fillStyle(C.PANEL_BG, 0.96);
+        g.fillRect(ar.x, ar.y, ar.w, ar.h);
+        g.lineStyle(1.5, C.PANEL_BD, 1);
+        g.strokeRect(ar.x, ar.y, ar.w, ar.h);
+        g.fillStyle(C.SEL_BD, 0.2);
+        g.fillRect(ar.x + 1, ar.y + 2 + this.itemActCursor * 10, ar.w - 2, 9);
+      }
+    }
+
     // ── Action menu panel (near selected unit, menu state only) ────────────
     if (this.gameState === 'menu' && this.selectedUnit) {
       const r = this._menuRect();
@@ -911,6 +1106,40 @@ class GameMapScene extends Phaser.Scene {
       }
     }
 
+    // ── Inventory / weapon-select list ────────────────────────────────────
+    this.txtInvItems.forEach(t => t.setVisible(false));
+    if (['weapon-select', 'items', 'item-action'].includes(this.gameState) && this.selectedUnit) {
+      const list = this.gameState === 'weapon-select'
+        ? this._getCombatWeapons()
+        : (this.selectedUnit.weapons || []);
+      const r = this._invRect();
+      for (let i = 0; i < Math.min(list.length, this.txtInvItems.length); i++) {
+        const item  = list[i];
+        const isSel = i === this.invCursor;
+        const eq    = (item === this.selectedUnit.equippedWeapon) ? '*' : ' ';
+        this.txtInvItems[i]
+          .setText(`${isSel ? '>' : ' '}${eq}${item.name}  ${item.uses}/${item.maxUses}`)
+          .setPosition(r.x + 3, r.y + 2 + i * 10)
+          .setColor(isSel ? C.TITLE : C.TEXT)
+          .setVisible(true);
+      }
+    }
+
+    // ── Item action sub-menu ──────────────────────────────────────────────
+    this.txtItemAct.forEach(t => t.setVisible(false));
+    if (this.gameState === 'item-action' && this.selectedUnit) {
+      const r  = this._invRect();
+      const ar = this._itemActRect(r);
+      for (let i = 0; i < this.itemActOptions.length; i++) {
+        const sel = i === this.itemActCursor;
+        this.txtItemAct[i]
+          .setText((sel ? '>' : ' ') + ' ' + this.itemActOptions[i])
+          .setPosition(ar.x + 3, ar.y + 2 + i * 10)
+          .setColor(sel ? C.TITLE : C.TEXT)
+          .setVisible(true);
+      }
+    }
+
     // XP bar label (hides status/hint while animating)
     const showXP = !!this.xpAnim;
     if (showXP) {
@@ -929,6 +1158,12 @@ class GameMapScene extends Phaser.Scene {
         ? (this.forecastTarget ? 'X:attack  Z:back' : 'aim at enemy  Z:back')
         : this.gameState === 'menu'
         ? 'X:confirm  Z:undo move'
+        : this.gameState === 'weapon-select'
+        ? 'X:select weapon  Z:back'
+        : this.gameState === 'items'
+        ? 'X:action  E:info  Z:back'
+        : this.gameState === 'item-action'
+        ? 'X:confirm  Z:cancel'
         : this.gameState === 'selected'
         ? 'X:move/stay  Z:cancel'
         : this.phase === PHASE.PLAYER_TURN ? 'X:select  E:inspect' : ''

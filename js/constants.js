@@ -189,6 +189,8 @@ const WEAPON_DATA = {
   DROUGHT: { name: 'Drought', type: 'dark', tier: 'wood',   isMagic: true, might:  2, hit: 85, crit: 0, uses: 25, maxUses: 25, range: [1,2], effect: { type: 'poison', chance: 100 }, desc: 'Dark curse. Poisons on hit.' },
   // ── Staves (support only — isStaff; skipped in auto-equip for combat) ───────
   HEAL: { name: 'Heal', type: 'staff', tier: 'bronze', isStaff: true, might: 0, hit: 100, crit: 0, uses: 5, maxUses: 5, range: [1,1], healAmount: 10, desc: 'Restores HP to an ally.' },
+  // ── Consumable items ─────────────────────────────────────────────────────────
+  HEALING_POTION: { name: 'Healing Potion', type: 'consumable', tier: 'basic', isConsumable: true, uses: 3, maxUses: 3, healAmount: 10, desc: 'Restores 10 HP to the user.' },
   // ── Special lord weapons ─────────────────────────────────────────────────────
   SERPENTS_BONE: { name: "Serpent's Bone", type: 'sword', tier: 'special', might:  6, hit: 85, crit: 5, uses: 15, maxUses: 15, range: [1,1], effect: { type: 'execute',   charges: 1 },                              desc: 'Stolen from a dead god.' },
   PIERCER:       { name: 'Piercer',        type: 'lance', tier: 'special', might:  5, hit: 80, crit: 0, uses: 20, maxUses: 20, range: [1,1], effect: { type: 'effective', vsClass: 'Bulwark', multiplier: 3 },        desc: 'Forged to crack plate armor.' },
@@ -208,7 +210,7 @@ const LORD_DEFS = [
     stats:   { hp: 20, pow: 8,  moj: 2,  sp: 7, lck: 5, def: 5, mdef: 4, move: 5 },
     growths: { hp: 80, pow: 70, moj: 10, sp: 75, lck: 55, def: 55, mdef: 35 },
     moveCosts: CLASS_MOVE_COSTS.PICKPOCKET,
-    startingWeapons: ['SERPENTS_BONE'],
+    startingWeapons: ['SERPENTS_BONE', 'HEALING_POTION'],
   },
   {
     label: 'LORD II', className: 'Astronomer', color: 0x6a3a9a, light: '#b080f0',
@@ -216,7 +218,7 @@ const LORD_DEFS = [
     stats:   { hp: 17, pow: 3,  moj: 11, sp: 7, lck: 6, def: 3, mdef: 8, move: 5 },
     growths: { hp: 65, pow: 10, moj: 90, sp: 65, lck: 60, def: 15, mdef: 85 },
     moveCosts: CLASS_MOVE_COSTS.NORMAL,
-    startingWeapons: ['FLAME', 'SMITE', 'DROUGHT', 'HEAL'],
+    startingWeapons: ['FLAME', 'SMITE', 'DROUGHT', 'HEAL', 'HEALING_POTION'],
   },
   {
     label: 'LORD III', className: 'Stud Master', color: 0x3a8a50, light: '#80d090',
@@ -224,6 +226,6 @@ const LORD_DEFS = [
     stats:   { hp: 22, pow: 10, moj: 1,  sp: 6, lck: 4, def: 8, mdef: 3, move: 7 },
     growths: { hp: 90, pow: 75, moj: 5,  sp: 50, lck: 40, def: 75, mdef: 20 },
     moveCosts: CLASS_MOVE_COSTS.CAVALRY,
-    startingWeapons: ['SWIFT_BLADE', 'PIERCER'],
+    startingWeapons: ['SWIFT_BLADE', 'PIERCER', 'HEALING_POTION'],
   },
 ];

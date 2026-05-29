@@ -456,12 +456,58 @@ Each of the three lords belongs to a **unique class**. Classes are permanent —
 1. **Select** a player unit (X on the unit tile). Move range (blue) and potential attack range (red) are shown.
 2. **Move** the cursor to any tile in the move range and confirm (X). The unit moves there. To stay in place, confirm on the unit's own tile.
 3. **Action menu** appears near the unit with the available options:
-   - **ATTACK** — shown only if at least one enemy is within attack range of the new position.
-   - **WAIT** — end the unit's turn without attacking.
+   - **ATTACK** — only shown if at least one enemy is within attack range.
+   - **ITEMS** — only shown if the unit has at least one item in their inventory.
+   - **WAIT** — end the unit's turn without acting.
    Navigate with W/S or Up/Down; confirm with X; cancel with Z (undoes the move).
 4. **Targeting** — if ATTACK is chosen, the cursor auto-snaps to the nearest attackable enemy. Move the cursor across other enemies to cycle targets. The **combat forecast panel** appears above the HUD showing both sides' stats.
 5. Confirm (X) on an enemy to execute combat. The unit is marked as done.
-6. **Auto-end turn** — as soon as every player unit has committed an action (attacked or waited), the player phase ends automatically and the enemy phase begins.
+6. **Auto-end turn** — as soon as every player unit has committed an action (attacked, used an item, or waited), the player phase ends automatically and the enemy phase begins.
+
+---
+
+### Item menu (ITEMS option)
+
+Opening ITEMS from the action menu shows the unit's full inventory as a popup list. Each row shows: `[>][*] Item name  uses/max`.  `*` marks the currently equipped weapon.
+
+Navigate with W/S or Up/Down. Press **X** to open the action sub-menu for the highlighted item. Press **E** to view the item's full description (launches the StatusScene item-detail view). Press **Z** to return to the action menu (without ending the turn).
+
+#### Item action sub-menu
+
+| Item type | Available actions |
+|---|---|
+| Weapon / Tome | **EQUIP**, **DROP** |
+| Staff | **EQUIP**, **DROP** |
+| Consumable | **USE**, **DROP** |
+
+- **EQUIP** — changes the unit's equipped weapon to this item. Does **not** end the turn. Returns to the action menu so the player can still ATTACK or WAIT.
+- **USE** — applies the item effect to the unit (e.g. heal HP). Ends the turn.
+- **DROP** — permanently removes the item from the unit's inventory. Does **not** end the turn.
+
+Press **Z** from the sub-menu to cancel back to the inventory list.
+
+#### Weapon selection (pre-attack)
+
+When ATTACK is selected and the unit carries more than one combat-usable weapon (non-staff, non-consumable), a **weapon selection popup** appears first. Select a weapon with X to equip it for this combat and enter targeting. Press Z to go back to the action menu.  
+If the unit has only one weapon, the weapon selection step is skipped and targeting opens immediately.
+
+---
+
+### Starting items
+
+All lords begin each run with:
+- Their lord-specific weapons (see Section 10)
+- **1× Healing Potion** (3 uses, restores 10 HP to the user)
+
+#### Healing Potion
+
+| Stat | Value |
+|---|---|
+| Type | Consumable |
+| Uses | 3/3 |
+| Effect | Restores 10 HP to the user |
+| Ends turn | Yes |
+| Description | Restores 10 HP to the user. |
 
 ### Combat forecast panel
 
