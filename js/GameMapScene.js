@@ -28,6 +28,17 @@ class GameMapScene extends Phaser.Scene {
     this.camX          = 0;
     this.camY          = 0;
 
+    // XP gain animation  { unit, amount, startXP, endXP, displayXP, duration, elapsed, doLevelUp, gained }
+    this.xpAnim = null;
+
+    // Action-menu / combat-preview state machine
+    this.gameState      = 'idle';   // 'idle'|'selected'|'menu'|'targeting'
+    this.menuOptions    = [];       // strings shown in action menu
+    this.menuCursor     = 0;
+    this.preActionGx    = 0;        // unit gx before last move (for cancel)
+    this.preActionGy    = 0;
+    this.forecastTarget = null;     // enemy being previewed during targeting
+
     this.blinkOn  = true;
     this.blinkT   = 0;
     this.statusMsg = 'Player Phase';
@@ -160,8 +171,8 @@ class GameMapScene extends Phaser.Scene {
       return;
     }
 
-    // Status screen — available during player or enemy phase
-    if (jd(this.keys.e)) {
+    // Status screen — available in any phase (not during menus to avoid confusion)
+    if (jd(this.keys.e) && this.gameState !== 'menu') {
       const inspected = this._unitAt(this.cursorX, this.cursorY);
       if (inspected) {
         this.scene.launch('Status', { unit: inspected, callerKey: 'GameMap' });
@@ -172,12 +183,32 @@ class GameMapScene extends Phaser.Scene {
 
     if (this.phase === PHASE.ENEMY_TURN) return;
 
+    // Action menu: Up/Down navigate options; X confirms; Z cancels back
+    if (this.gameState === 'menu') {
+      if (jd(this.keys.up)   || jd(this.keys.w))
+        this.menuCursor = Math.max(0, this.menuCursor - 1);
+      if (jd(this.keys.down) || jd(this.keys.s))
+        this.menuCursor = Math.min(this.menuOptions.length - 1, this.menuCursor + 1);
+      if (jd(this.keys.confirm) || jd(this.keys.enter)) this._onConfirm();
+      if (jd(this.keys.cancel)  || jd(this.keys.esc))   this._onCancel();
+      return;
+    }
+
+    // Normal cursor movement
     if (jd(this.keys.up)    || jd(this.keys.w)) this._moveCursor(0, -1);
     if (jd(this.keys.down)  || jd(this.keys.s)) this._moveCursor(0,  1);
     if (jd(this.keys.left)  || jd(this.keys.a)) this._moveCursor(-1, 0);
     if (jd(this.keys.right) || jd(this.keys.d)) this._moveCursor(1,  0);
     if (jd(this.keys.confirm) || jd(this.keys.enter)) this._onConfirm();
-    if (jd(this.keys.cancel)  || jd(this.keys.esc))   this._deselect();
+    if (jd(this.keys.cancel)  || jd(this.keys.esc))   this._onCancel();
+
+    // Update combat preview while moving cursor in targeting mode
+    if (this.gameState === 'targeting') {
+      const t = this._unitAt(this.cursorX, this.cursorY);
+      this.forecastTarget = (t && t.faction === FACTION.ENEMY &&
+                             this.attackRange.has(`${this.cursorX},${this.cursorY}`))
+        ? t : null;
+    }
   }
 
   _moveCursor(dx, dy) {
@@ -187,59 +218,148 @@ class GameMapScene extends Phaser.Scene {
   }
 
   _onConfirm() {
-    const u = this._unitAt(this.cursorX, this.cursorY);
+    const u   = this._unitAt(this.cursorX, this.cursorY);
     const key = `${this.cursorX},${this.cursorY}`;
 
-    if (!this.selectedUnit) {
-      // Select a player unit
-      if (u && u.faction === FACTION.PLAYER && !u.moved) {
-        this.selectedUnit = u;
-        this.moveRange   = u.computeMoveRange(this.grid, this.units);
-        this.attackRange = u.computeAttackRange(this.moveRange);
-      }
-      return;
-    }
+    switch (this.gameState) {
+      case 'idle':
+        if (u && u.faction === FACTION.PLAYER && !u.moved) {
+          this.selectedUnit = u;
+          this.moveRange    = u.computeMoveRange(this.grid, this.units);
+          this.attackRange  = u.computeAttackRange(this.moveRange);
+          this.gameState    = 'selected';
+        }
+        break;
 
-    // Unit already selected:
-    if (u && u.faction === FACTION.ENEMY && this.attackRange.has(key)) {
-      // Attack
-      this._doAttack(this.selectedUnit, u);
-      return;
-    }
-    if (this.moveRange.has(key) && (!u || u === this.selectedUnit)) {
-      // Move
-      this.selectedUnit.gx = this.cursorX;
-      this.selectedUnit.gy = this.cursorY;
-      // Recompute attack-only range from new position
-      const singleTile = new Map([[`${this.cursorX},${this.cursorY}`, 0]]);
-      this.moveRange   = singleTile;
-      this.attackRange = this.selectedUnit.computeAttackRange(singleTile);
-      return;
-    }
-    if (u && u.faction === FACTION.ENEMY && this.attackRange.has(key)) {
-      this._doAttack(this.selectedUnit, u);
-      return;
-    }
-    // Clicked on own unit — switch selection
-    if (u && u.faction === FACTION.PLAYER && !u.moved) {
-      this.selectedUnit = u;
-      this.moveRange   = u.computeMoveRange(this.grid, this.units);
-      this.attackRange = u.computeAttackRange(this.moveRange);
-      return;
-    }
-    // Clicked empty / impassable — mark unit done if it has moved
-    if (!u || u === this.selectedUnit) {
-      if (this.selectedUnit.gx !== this.selectedUnit._origX || true) {
-        this.selectedUnit.moved = true;
-        this._deselect();
-      }
+      case 'selected':
+        // Switch to a different ready player unit
+        if (u && u.faction === FACTION.PLAYER && !u.moved && u !== this.selectedUnit) {
+          this.selectedUnit = u;
+          this.moveRange    = u.computeMoveRange(this.grid, this.units);
+          this.attackRange  = u.computeAttackRange(this.moveRange);
+          break;
+        }
+        // Move to tile (or stay in place) → open action menu
+        if (this.moveRange.has(key) && (!u || u === this.selectedUnit)) {
+          this.preActionGx = this.selectedUnit.gx;
+          this.preActionGy = this.selectedUnit.gy;
+          this.selectedUnit.gx = this.cursorX;
+          this.selectedUnit.gy = this.cursorY;
+          const pos = new Map([[key, 0]]);
+          this.moveRange   = pos;
+          this.attackRange = this.selectedUnit.computeAttackRange(pos);
+          this._openMenu();
+        }
+        break;
+
+      case 'menu':
+        this._confirmMenuOption();
+        break;
+
+      case 'targeting':
+        if (u && u.faction === FACTION.ENEMY && this.attackRange.has(key)) {
+          this._doAttack(this.selectedUnit, u);
+        }
+        break;
     }
   }
 
-  _deselect() {
-    this.selectedUnit = null;
-    this.moveRange    = new Map();
-    this.attackRange  = new Set();
+  _onCancel() {
+    switch (this.gameState) {
+      case 'selected':
+        this._resetSelection();
+        break;
+      case 'menu':
+        // Undo the move — restore unit to pre-move position
+        this.selectedUnit.gx = this.preActionGx;
+        this.selectedUnit.gy = this.preActionGy;
+        this.moveRange   = this.selectedUnit.computeMoveRange(this.grid, this.units);
+        this.attackRange = this.selectedUnit.computeAttackRange(this.moveRange);
+        this.gameState   = 'selected';
+        break;
+      case 'targeting':
+        this.forecastTarget = null;
+        this._openMenu();
+        break;
+      default:
+        this._resetSelection();
+        break;
+    }
+  }
+
+  _openMenu() {
+    const hasTarget = this.units.some(u =>
+      u.faction === FACTION.ENEMY && u.alive &&
+      this.attackRange.has(`${u.gx},${u.gy}`)
+    );
+    this.menuOptions = hasTarget ? ['ATTACK', 'WAIT'] : ['WAIT'];
+    this.menuCursor  = 0;
+    this.gameState   = 'menu';
+  }
+
+  _confirmMenuOption() {
+    const opt = this.menuOptions[this.menuCursor];
+    if (opt === 'ATTACK') {
+      this.gameState = 'targeting';
+      // Auto-place cursor on nearest attackable enemy
+      let nearest = null, bestD = 9999;
+      for (const u of this.units) {
+        if (u.faction === FACTION.ENEMY && u.alive &&
+            this.attackRange.has(`${u.gx},${u.gy}`)) {
+          const d = Math.abs(u.gx - this.selectedUnit.gx) +
+                    Math.abs(u.gy - this.selectedUnit.gy);
+          if (d < bestD) { bestD = d; nearest = u; }
+        }
+      }
+      if (nearest) {
+        this.cursorX = nearest.gx;
+        this.cursorY = nearest.gy;
+        this._computeCamera();
+        this.forecastTarget = nearest;
+      }
+    } else {
+      // WAIT
+      this.selectedUnit.moved = true;
+      this._resetSelection();
+    }
+  }
+
+  // Combat preview data used by the forecast panel
+  _calcForecast(atk, def) {
+    const tDef  = TILE_DEF[this.grid[def.gy][def.gx]];
+    const tADef = TILE_DEF[this.grid[atk.gy][atk.gx]];
+    const aw = atk.equippedWeapon;
+    const dw = def.equippedWeapon;
+
+    const { dmg: atkDmg } = atk.calcDamage(def, tDef);
+    const atkDoubles = atk.sp >= def.sp + 4;
+    const atkHits    = atkDoubles ? 2 : 1;
+    const atkHit     = Math.min(100, Math.max(0,
+      (aw ? aw.hit : 80) + atk.lck - def.sp * 2));
+    const atkCrit    = aw ? aw.crit : 0;
+
+    const dist = Math.abs(atk.gx - def.gx) + Math.abs(atk.gy - def.gy);
+    const canCounter = dist === 1;
+    let defDmg = 0, defHit = 0, defHits = 0, defCrit = 0;
+    if (canCounter) {
+      const { dmg: cd } = def.calcDamage(atk, tADef);
+      defDmg  = cd;
+      defHit  = Math.min(100, Math.max(0,
+        (dw ? dw.hit : 80) + def.lck - atk.sp * 2));
+      defHits = 1;
+      defCrit = dw ? dw.crit : 0;
+    }
+    return { atkDmg, atkHit, atkHits, atkCrit, defDmg, defHit, defHits, defCrit, canCounter };
+  }
+
+  _resetSelection() {
+    this.selectedUnit   = null;
+    this.moveRange      = new Map();
+    this.attackRange    = new Set();
+    this.forecastTarget = null;
+    this.gameState      = 'idle';
+    this.menuOptions    = [];
+    this.menuCursor     = 0;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -289,7 +409,26 @@ class GameMapScene extends Phaser.Scene {
 
     attacker.moved = true;
     this.logT = 2500;
-    this._deselect();
+    this._resetSelection();
+
+    // Award XP to the player attacker when they kill an enemy
+    if (attacker.faction === FACTION.PLAYER && !defender.alive) {
+      const xpAmt   = defender.isBoss
+        ? 100
+        : Math.max(5, Math.round(40 * Math.pow(0.9, attacker.level - 1)));
+      const startXP = attacker.xp;
+      const result  = attacker.awardXP(xpAmt);
+      this.xpAnim   = {
+        unit: attacker, amount: xpAmt, startXP,
+        endXP:     result.leveled ? 100 : attacker.xp,
+        displayXP: startXP,
+        duration:  1100,
+        elapsed:   0,
+        doLevelUp: result.leveled,
+        gained:    result.gained,
+      };
+    }
+
     this._removeDead();
     this._checkEndCondition();
   }
@@ -316,7 +455,7 @@ class GameMapScene extends Phaser.Scene {
   //  TURN MANAGEMENT
   // ═══════════════════════════════════════════════════════════════════════════
   _endPlayerTurn() {
-    this._deselect();
+    this._resetSelection();
     this.phase     = PHASE.ENEMY_TURN;
     this.statusMsg = 'Enemy Phase';
     this.statusT   = 99999;
@@ -413,6 +552,7 @@ class GameMapScene extends Phaser.Scene {
     this.txtTileDef  = this.add.text(178, uy + 17, '', s(6, C.DIM)).setDepth(5);
     this.txtStatus   = this.add.text(GAME_W/2, uy - 8, '', { ...s(8, C.TITLE), align: 'center' }).setOrigin(0.5).setDepth(5);
     this.txtHint     = this.add.text(GAME_W/2, uy - 2, '', { ...s(5, C.DIM), align:'center' }).setOrigin(0.5, 1).setDepth(5);
+    this.txtXPLabel  = this.add.text(3, uy - 9, '', s(5, C.TITLE)).setDepth(6).setVisible(false);
 
     // Battle log container
     this.txtLog = [
@@ -424,6 +564,30 @@ class GameMapScene extends Phaser.Scene {
     this.txtEndTitle = this.add.text(GAME_W/2, GAME_H/2 - 12, '', { ...s(16, '#f0d060'), align: 'center' }).setOrigin(0.5).setDepth(10);
     this.txtEndSub   = this.add.text(GAME_W/2, GAME_H/2 + 6,  '', { ...s(7, C.TEXT), align: 'center' }).setOrigin(0.5).setDepth(10);
     this.txtEndHint  = this.add.text(GAME_W/2, GAME_H/2 + 20, '', { ...s(6, C.DIM), align: 'center' }).setOrigin(0.5).setDepth(10);
+
+    // Combat forecast panel (shown when gameState==='targeting' and forecastTarget set)
+    const fy = uy - 39;  // forecast panel top: y = 130-39 = 91
+    this.txtFcAtkName = this.add.text(3,           fy + 3,  '', s(5, C.PHASE_P)).setDepth(6);
+    this.txtFcAtkInfo = this.add.text(3,           fy + 13, '', s(5, C.TEXT)).setDepth(6);
+    this.txtFcAtkHit  = this.add.text(3,           fy + 23, '', s(5, C.TEXT)).setDepth(6);
+    this.txtFcVs      = this.add.text(GAME_W / 2,  fy + 17, 'vs', { ...s(5, C.DIM), align: 'center' }).setOrigin(0.5).setDepth(6);
+    this.txtFcDefName = this.add.text(GAME_W/2+3,  fy + 3,  '', s(5, C.PHASE_E)).setDepth(6);
+    this.txtFcDefInfo = this.add.text(GAME_W/2+3,  fy + 13, '', s(5, C.TEXT)).setDepth(6);
+    this.txtFcDefHit  = this.add.text(GAME_W/2+3,  fy + 23, '', s(5, C.TEXT)).setDepth(6);
+    this._fcTexts = [
+      this.txtFcAtkName, this.txtFcAtkInfo, this.txtFcAtkHit,
+      this.txtFcVs,
+      this.txtFcDefName, this.txtFcDefInfo, this.txtFcDefHit,
+    ];
+    this._fcTexts.forEach(t => t.setVisible(false));
+
+    // Action menu texts (up to 3 options, positioned dynamically near the unit)
+    this.txtMenuItems = [
+      this.add.text(0, 0, '', s(6, C.TEXT)).setDepth(6),
+      this.add.text(0, 0, '', s(6, C.TEXT)).setDepth(6),
+      this.add.text(0, 0, '', s(6, C.TEXT)).setDepth(6),
+    ];
+    this.txtMenuItems.forEach(t => t.setVisible(false));
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -443,6 +607,22 @@ class GameMapScene extends Phaser.Scene {
     }
 
     if (this.phase === PHASE.ENEMY_TURN) this._tickEnemyTurn(delta);
+
+    // XP bar animation
+    if (this.xpAnim) {
+      this.xpAnim.elapsed += delta;
+      const t = Math.min(1, this.xpAnim.elapsed / this.xpAnim.duration);
+      this.xpAnim.displayXP = this.xpAnim.startXP +
+        (this.xpAnim.endXP - this.xpAnim.startXP) * t;
+      if (t >= 1) {
+        const { doLevelUp, gained, unit } = this.xpAnim;
+        this.xpAnim = null;
+        if (doLevelUp) {
+          this.scene.launch('LevelUp', { unit, gained, callerKey: 'GameMap' });
+          this.scene.pause();
+        }
+      }
+    }
 
     this._handleInput();
     this._renderAll();
@@ -584,19 +764,63 @@ class GameMapScene extends Phaser.Scene {
     const uy = GAME_H - UI_H;
     g.clear();
 
-    // HUD background
+    // ── Combat forecast panel (above HUD, targeting mode only) ─────────────
+    if (this.gameState === 'targeting' && this.forecastTarget) {
+      const fy = uy - 39;
+      g.fillStyle(C.PANEL_BG, 0.95);
+      g.fillRect(0, fy, GAME_W, 39);
+      g.lineStyle(1, C.PANEL_BD, 1);
+      g.strokeLineShape(new Phaser.Geom.Line(0, fy, GAME_W, fy));
+      // Centre divider
+      g.lineStyle(0.5, C.PANEL_BD, 0.5);
+      g.strokeLineShape(new Phaser.Geom.Line(GAME_W/2, fy + 2, GAME_W/2, fy + 37));
+    }
+
+    // ── Action menu panel (near selected unit, menu state only) ────────────
+    if (this.gameState === 'menu' && this.selectedUnit) {
+      const r = this._menuRect();
+      g.fillStyle(C.PANEL_BG, 0.96);
+      g.fillRect(r.x, r.y, r.w, r.h);
+      g.lineStyle(1.5, C.PANEL_BD, 1);
+      g.strokeRect(r.x, r.y, r.w, r.h);
+      // Highlight selected row
+      g.fillStyle(C.SEL_BD, 0.2);
+      g.fillRect(r.x + 1, r.y + 2 + this.menuCursor * 12, r.w - 2, 11);
+    }
+
+    // ── XP gain bar (just above HUD, shown while xpAnim is running) ──────────
+    if (this.xpAnim) {
+      const by = uy - 10;
+      g.fillStyle(0x0d0d24, 0.95);
+      g.fillRect(0, by, GAME_W, 10);
+      g.lineStyle(1, C.PANEL_BD, 0.8);
+      g.strokeLineShape(new Phaser.Geom.Line(0, by, GAME_W, by));
+      // Track
+      const barX = 82, barW = GAME_W - 88;
+      g.fillStyle(0x1a1a30, 1);
+      g.fillRect(barX, by + 2, barW, 6);
+      // Fill (gold)
+      const fill = Math.floor(barW * Math.min(1, this.xpAnim.displayXP / 100));
+      if (fill > 0) {
+        g.fillStyle(0xf0d060, 1);
+        g.fillRect(barX, by + 2, fill, 6);
+      }
+      g.lineStyle(0.5, C.PANEL_BD, 0.5);
+      g.strokeRect(barX, by + 2, barW, 6);
+    }
+
+    // ── Main HUD background ─────────────────────────────────────────────────
     g.fillStyle(0x0d0d24, 0.95);
     g.fillRect(0, uy, GAME_W, UI_H);
     g.lineStyle(1, C.PANEL_BD, 1);
     g.strokeLineShape(new Phaser.Geom.Line(0, uy, GAME_W, uy));
 
-    // Dividers
     g.lineStyle(0.5, C.PANEL_BD, 0.5);
-    g.strokeLineShape(new Phaser.Geom.Line(74, uy, 74, GAME_H));
+    g.strokeLineShape(new Phaser.Geom.Line(74,  uy, 74,  GAME_H));
     g.strokeLineShape(new Phaser.Geom.Line(172, uy, 172, GAME_H));
 
-    // Battle log background
-    if (this.battleLog.length > 0) {
+    // Battle log background (hidden while forecast is showing)
+    if (this.battleLog.length > 0 && !(this.gameState === 'targeting' && this.forecastTarget)) {
       const rows = this.battleLog.length;
       g.fillStyle(0x0d0d24, 0.92);
       g.fillRect(20, uy - rows * 11 - 4, GAME_W - 40, rows * 11 + 6);
@@ -609,6 +833,18 @@ class GameMapScene extends Phaser.Scene {
       g.fillStyle(0x000000, 0.65);
       g.fillRect(0, 0, GAME_W, GAME_H);
     }
+  }
+
+  // Returns the bounding rect for the action menu popup
+  _menuRect() {
+    const { x: sx, y: sy } = this._screenPos(this.selectedUnit.gx, this.selectedUnit.gy);
+    const w = 58, h = this.menuOptions.length * 12 + 4;
+    let x = sx + TILE_S + 1;
+    if (x + w > GAME_W) x = sx - w - 1;
+    let y = sy - 2;
+    if (y + h > GAME_H - UI_H) y = GAME_H - UI_H - h - 2;
+    if (y < 0) y = 0;
+    return { x, y, w, h };
   }
 
   _updateHudText() {
@@ -641,16 +877,66 @@ class GameMapScene extends Phaser.Scene {
       this.txtTileDef.setText(`DEF +${TILE_DEF[tile]}`);
     }
 
-    // Status message
-    this.txtStatus.setText(this.statusMsg);
+    // ── Combat forecast panel texts ───────────────────────────────────────
+    const showFc = this.gameState === 'targeting' && !!this.forecastTarget;
+    this._fcTexts.forEach(t => t.setVisible(showFc));
+    if (showFc) {
+      const fc  = this._calcForecast(this.selectedUnit, this.forecastTarget);
+      const atk = this.selectedUnit;
+      const def = this.forecastTarget;
+      this.txtFcAtkName.setText(atk.name);
+      this.txtFcAtkInfo.setText(`HP:${atk.hp}/${atk.maxHp}  Atk:${fc.atkDmg}`);
+      this.txtFcAtkHit.setText( `Hit:${fc.atkHit}%  x${fc.atkHits}${fc.atkCrit > 0 ? `  Cr:${fc.atkCrit}%` : ''}`);
+      this.txtFcDefName.setText(def.name);
+      if (fc.canCounter) {
+        this.txtFcDefInfo.setText(`HP:${def.hp}/${def.maxHp}  Atk:${fc.defDmg}`);
+        this.txtFcDefHit.setText( `Hit:${fc.defHit}%  x${fc.defHits}${fc.defCrit > 0 ? `  Cr:${fc.defCrit}%` : ''}`);
+      } else {
+        this.txtFcDefInfo.setText(`HP:${def.hp}/${def.maxHp}  Atk:--`);
+        this.txtFcDefHit.setText( 'No counter');
+      }
+    }
+
+    // ── Action menu texts ─────────────────────────────────────────────────
+    this.txtMenuItems.forEach(t => t.setVisible(false));
+    if (this.gameState === 'menu' && this.selectedUnit) {
+      const r = this._menuRect();
+      for (let i = 0; i < this.menuOptions.length; i++) {
+        const sel = i === this.menuCursor;
+        this.txtMenuItems[i]
+          .setText((sel ? '>' : ' ') + ' ' + this.menuOptions[i])
+          .setPosition(r.x + 4, r.y + 2 + i * 12)
+          .setColor(sel ? C.TITLE : C.TEXT)
+          .setVisible(true);
+      }
+    }
+
+    // XP bar label (hides status/hint while animating)
+    const showXP = !!this.xpAnim;
+    if (showXP) {
+      this.txtXPLabel.setText(`${this.xpAnim.unit.name}  EXP +${this.xpAnim.amount}`).setVisible(true);
+    } else {
+      this.txtXPLabel.setVisible(false);
+    }
+
+    // Status message (hide while forecast or XP bar is shown)
+    this.txtStatus.setText((showFc || showXP) ? '' : this.statusMsg);
+
+    // Hint line (hidden while XP bar is visible)
+    this.txtHint.setVisible(!showXP);
     this.txtHint.setText(
-      this.selectedUnit ? 'X:act  Z:cancel' :
-      this.phase === PHASE.PLAYER_TURN ? 'X:select  Z:cancel' : ''
+      this.gameState === 'targeting'
+        ? (this.forecastTarget ? 'X:attack  Z:back' : 'aim at enemy  Z:back')
+        : this.gameState === 'menu'
+        ? 'X:confirm  Z:undo move'
+        : this.gameState === 'selected'
+        ? 'X:move/stay  Z:cancel'
+        : this.phase === PHASE.PLAYER_TURN ? 'X:select  E:inspect' : ''
     );
 
-    // Battle log
+    // Battle log (hidden while forecast is shown)
     for (let i = 0; i < 2; i++) {
-      this.txtLog[i].setText(this.battleLog[i] || '');
+      this.txtLog[i].setText(showFc ? '' : (this.battleLog[i] || ''));
       this.txtLog[i].setY(uy - (2 - i) * 11 - 2);
     }
 

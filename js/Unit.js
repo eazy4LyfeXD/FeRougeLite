@@ -38,6 +38,18 @@ class Unit {
     this.weapons        = weapons.slice();
     this.equippedWeapon = this.weapons.find(w => !w.isStaff) || this.weapons[0] || null;
     this.statusEffects  = [];
+    this.xp             = 0;   // 0–99; fills to 100 = level-up
+  }
+
+  // Award XP; returns { leveled, gained } where gained lists which stats rose.
+  awardXP(amount) {
+    this.xp += amount;
+    if (this.xp >= 100) {
+      this.xp -= 100;
+      const gained = this.levelUp();
+      return { leveled: true, gained };
+    }
+    return { leveled: false, gained: {} };
   }
 
   get alive() { return this.hp > 0; }

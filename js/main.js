@@ -24,6 +24,7 @@ const config = {
     LordSelectScene,
     GameMapScene,
     StatusScene,
+    LevelUpScene,
   ],
 
   parent: document.body,

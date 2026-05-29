@@ -97,27 +97,60 @@ Counter-attacks are not doubled regardless.
 
 ## 5. Growth Rates & Leveling
 
-- Every unit (initially just the player Lord) has a **growth rate** for each stat (except Move).
-- Growth rates are expressed as a **percentage (0–100)**.
-- On level-up, each stat rolls independently: if `random(0–99) < growth_rate`, the stat increases by 1.
-  - HP increase also raises `maxHp` by 1.
-- **No class promotions. No level cap.** The lord grows indefinitely.
-- **[TBD]** What triggers a level-up (XP from combat? clearing a map?).
-- **[TBD]** Whether enemies also level up as the run progresses.
+### Experience Points
+
+Player lords earn XP by killing enemies. No XP is awarded for combat that does not result in a kill.
+
+| Kill type | XP awarded |
+|---|---|
+| Regular enemy | `max(5, round(40 × 0.9^(level − 1)))` |
+| Boss | 100 (always fills the bar) |
+
+The formula produces a natural exponential decay:
+
+| Lord level | XP per regular kill |
+|---|---|
+| 1 | 40 |
+| 5 | ~26 |
+| 10 | ~15 |
+| 20 | ~6 |
+
+This keeps early-game leveling fast and later levels increasingly difficult without a separate XP-threshold system.
+
+### XP bar
+
+After a kill, a **gold XP bar** appears in a thin strip just above the HUD. It animates from the previous XP value to the new value over ~1.1 seconds. If the bar reaches 100 %, the level-up screen is triggered immediately after the animation completes.
+
+### Level-up screen
+
+When a lord levels up, the game pauses and launches the **LevelUpScene** overlay:
+
+- The unit's **portrait** is shown on the left (same layout as the Status Screen).
+- The right panel shows all stats at their **new values**.
+- Stats that increased have their label brightened and a blinking **+1** indicator in gold.
+- The **+1** indicators blink rapidly for ~1.2 seconds, then hold steady.
+- After 0.8 seconds the player can press any button to close the screen and resume.
+
+### Growth rate mechanics
+
+- Each stat rolls independently on level-up: `random(0–99) < growth_rate` → stat + 1.
+- HP gain increases both `hp` (current) and `maxHp` by 1.
+- **Move never grows.**
+- No class promotions. No level cap.
 
 ### Lord base stats & growth rates
 
-| | LORD I | LORD II | LORD III |
+| | LORD I · Pickpocket | LORD II · Astronomer | LORD III · Stud Master |
 |---|---|---|---|
-| **Theme** | Balanced | Powerhouse | Mojo Specialist |
-| HP | 20 (75%) | 24 (85%) | 16 (60%) |
-| Pow | 8 (50%) | 11 (65%) | 3 (15%) |
-| Moj | 2 (15%) | 1 (5%) | 10 (65%) |
-| SP | 7 (55%) | 5 (35%) | 8 (60%) |
-| Lck | 5 (40%) | 3 (25%) | 6 (50%) |
-| Def | 5 (40%) | 7 (55%) | 3 (25%) |
-| MDef | 4 (30%) | 2 (15%) | 8 (60%) |
-| Move | 5 | 5 | 5 |
+| **Theme** | Swift blade | Magic specialist | Physical tank |
+| HP | 20 **(80%)** | 17 **(65%)** | 22 **(90%)** |
+| Pow | 8 **(70%)** | 3 **(10%)** | 10 **(75%)** |
+| Moj | 2 **(10%)** | 11 **(90%)** | 1 **(5%)** |
+| SP | 7 **(75%)** | 7 **(65%)** | 6 **(50%)** |
+| Lck | 5 **(55%)** | 6 **(60%)** | 4 **(40%)** |
+| Def | 5 **(55%)** | 3 **(15%)** | 8 **(75%)** |
+| MDef | 4 **(35%)** | 8 **(85%)** | 3 **(20%)** |
+| Move | 5 | 5 | **7** |
 
 ---
 
@@ -395,23 +428,6 @@ Each of the three lords belongs to a **unique class**. Classes are permanent —
 
 ---
 
-### Revised lord stats (aligned to classes)
-
-> Previous LORD II and III stats were placeholder. Now corrected to match their class identities.
-
-| | LORD I · Pickpocket | LORD II · Astronomer | LORD III · Stud Master |
-|---|---|---|---|
-| **Role** | Balanced blade | Magic generalist | Mounted bruiser |
-| HP | 20 (75%) | 17 (60%) | 22 (80%) |
-| Pow | 8 (50%) | 3 (15%) | 10 (60%) |
-| Moj | 2 (15%) | 11 (70%) | 1 (5%) |
-| SP | 7 (55%) | 7 (55%) | 6 (45%) |
-| Lck | 5 (40%) | 6 (50%) | 4 (35%) |
-| Def | 5 (40%) | 3 (20%) | 8 (55%) |
-| MDef | 4 (30%) | 8 (65%) | 3 (20%) |
-| Move | 5 | 5 | **7** |
-| Terrain | No penalty | Standard | Cavalry penalty |
-
 ---
 
 ## 8. Game Map & Combat  <!-- updated from §7 -->
@@ -435,10 +451,41 @@ Each of the three lords belongs to a **unique class**. Classes are permanent —
 | Mage | 10 | 2 | 10 | 5 | 4 | 1 | 5 | 3 |
 | General | 30 | 12 | 3 | 4 | 5 | 7 | 4 | 3 |
 
-### Combat
-- Attack type (physical vs magic) auto-selected per unit as described in Section 4.
-- Defender counter-attacks if alive and in melee range (distance = 1).
-- Speed doubling applies (attacker hits twice if SP ≥ foe SP + 4).
+### Turn flow
+
+1. **Select** a player unit (X on the unit tile). Move range (blue) and potential attack range (red) are shown.
+2. **Move** the cursor to any tile in the move range and confirm (X). The unit moves there. To stay in place, confirm on the unit's own tile.
+3. **Action menu** appears near the unit with the available options:
+   - **ATTACK** — shown only if at least one enemy is within attack range of the new position.
+   - **WAIT** — end the unit's turn without attacking.
+   Navigate with W/S or Up/Down; confirm with X; cancel with Z (undoes the move).
+4. **Targeting** — if ATTACK is chosen, the cursor auto-snaps to the nearest attackable enemy. Move the cursor across other enemies to cycle targets. The **combat forecast panel** appears above the HUD showing both sides' stats.
+5. Confirm (X) on an enemy to execute combat. The unit is marked as done.
+6. **Auto-end turn** — as soon as every player unit has committed an action (attacked or waited), the player phase ends automatically and the enemy phase begins.
+
+### Combat forecast panel
+
+Shown at the bottom of the map area while targeting an enemy:
+
+```
+ATTACKER          ║ DEFENDER
+HP:##/## Atk:##   ║ HP:##/## Atk:--
+Hit:##%  x#       ║ No counter
+```
+
+| Field | Meaning |
+|---|---|
+| Atk | Damage per hit (after weapon Might, defender Def, and any status debuffs) |
+| Hit% | Estimated hit rate: `weapon.hit + attacker.Lck − defender.SP × 2` (clamped 0–100) |
+| x1 / x2 | Number of hits attacker makes (x2 if attacker SP ≥ defender SP + 4) |
+| No counter | Defender cannot counter-attack (not adjacent after attacker moves) |
+
+> Hit% is shown as a preview; all attacks currently always connect (miss system is TBD).
+
+### Combat resolution
+- Attack type (physical vs magic) determined by equipped weapon (`isMagic` flag); falls back to `Moj > Pow` for weaponless units.
+- Defender counter-attacks if alive and adjacent (distance = 1). Counters never double.
+- Speed doubling: attacker hits twice if `SP ≥ foe SP + 4`.
 - Tile defense bonuses (physical only): Plain 0, Forest 1, Mountain 2, Fort 2, Village 1, Throne 3.
 - **Win condition:** Defeat all enemies, or defeat the boss (General).
 - **Lose condition:** Lord unit is killed.
