@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Fire Emblem Roguelite</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0d0d1a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+    canvas {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+  </style>
+</head>
+<body>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.60.0/phaser.min.js"></script>
+  <script src="js/constants.js"></script>
+  <script src="js/SaveData.js"></script>
+  <script src="js/MapGen.js"></script>
+  <script src="js/Unit.js"></script>
+  <script src="js/MainMenuScene.js"></script>
+  <script src="js/FileSelectScene.js"></script>
+  <script src="js/portrait_data.js"></script>
+  <script src="js/portraits.js"></script>
+  <script src="js/StatusScene.js"></script>
+  <script src="js/LordSelectScene.js"></script>
+  <script src="js/GameMapScene.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
