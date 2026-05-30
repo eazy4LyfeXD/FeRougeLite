@@ -185,6 +185,10 @@ const WEAPON_DATA = {
   WOOD_BOW:     { name: 'Wood Bow',     type: 'bow',   tier: 'wood',    might: 2, hit: 85, crit: 0, uses: 35, maxUses: 35, range: [2,2], desc: 'A weak practice bow.' },
   BRONZE_BOW:   { name: 'Bronze Bow',   type: 'bow',   tier: 'bronze',  might: 4, hit: 85, crit: 0, uses: 25, maxUses: 25, range: [2,2], desc: 'A reliable bronze bow.' },
   IRON_BOW:     { name: 'Iron Bow',     type: 'bow',   tier: 'iron',    might: 6, hit: 80, crit: 0, uses: 20, maxUses: 20, range: [2,2], desc: 'High-tension iron bow.' },
+  // ── Generic tomes (for enemy Necromancers — no special effects) ─────────────
+  WOOD_TOME:   { name: 'Wood Tome',   type: 'tome', tier: 'wood',   isMagic: true, might: 2, hit: 90, crit: 0, uses: 35, maxUses: 35, range: [1,2], desc: 'A crude magic tome.' },
+  BRONZE_TOME: { name: 'Bronze Tome', type: 'tome', tier: 'bronze', isMagic: true, might: 5, hit: 85, crit: 0, uses: 25, maxUses: 25, range: [1,2], desc: 'A reliable magic tome.' },
+  IRON_TOME:   { name: 'Iron Tome',   type: 'tome', tier: 'iron',   isMagic: true, might: 8, hit: 80, crit: 0, uses: 20, maxUses: 20, range: [1,2], desc: 'A heavy magic tome.' },
   // ── Tomes & Dark Magic (isMagic — uses Moj stat for attack) ─────────────────
   FLAME:   { name: 'Flame',   type: 'tome', tier: 'bronze', isMagic: true, might:  5, hit: 85, crit: 5, uses: 20, maxUses: 20, range: [1,2], effect: { type: 'burn',   chance: 40  }, desc: 'Fire tome. Burns on hit.' },
   SMITE:   { name: 'Smite',   type: 'tome', tier: 'bronze', isMagic: true, might: 25, hit: 70, crit: 0, uses:  3, maxUses:  3, range: [1,2],                                           desc: 'Holy wrath. 3 uses only.' },

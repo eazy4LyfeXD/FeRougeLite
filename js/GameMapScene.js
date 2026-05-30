@@ -141,23 +141,26 @@ class GameMapScene extends Phaser.Scene {
     }
 
     // ── Enemies (scaled by floor) ────────────────────────────────────────────
-    // Each stat grows by a fixed amount per floor beyond the first.
-    const sc = (base, perFloor) => base + Math.round(fMod * perFloor);
+    const sc   = (base, perFloor) => base + Math.round(fMod * perFloor);
+    // Weapon tier: Wood (fl 1) → Bronze (fl 2-3) → Iron (fl 4-5)
+    const tier = floor >= 4 ? 'IRON' : floor >= 2 ? 'BRONZE' : 'WOOD';
 
     const eTypes = [
       {
         name: 'Grunt',       className: 'Grunt',
         color: 0xc04040, symbol: '♟',
-        hp: sc(14,3), pow: sc(7,1),  moj: 0,      sp: sc(4,0.5),
+        hp: sc(14,3), pow: sc(7,1),  moj: 0,       sp: sc(4,0.5),
         lck: 2,        def: sc(4,1), mdef: sc(2,0.5), move: 4,
         moveCosts: CLASSES.GRUNT.moveCosts,
+        weapons: [makeWeapon(`${tier}_LANCE`)],
       },
       {
         name: 'Fletcher',    className: 'Fletcher',
         color: 0xc07030, symbol: '♝',
-        hp: sc(12,3), pow: sc(8,1),  moj: 0,      sp: sc(6,0.5),
+        hp: sc(12,3), pow: sc(8,1),  moj: 0,       sp: sc(6,0.5),
         lck: 3,        def: sc(2,1), mdef: sc(1,0.5), move: 6,
         moveCosts: CLASSES.FLETCHER.moveCosts,
+        weapons: [makeWeapon(`${tier}_SWORD`)],
       },
       {
         name: 'Necromancer', className: 'Necromancer',
@@ -165,6 +168,7 @@ class GameMapScene extends Phaser.Scene {
         hp: sc(10,3), pow: 2,        moj: sc(10,1), sp: sc(5,0.5),
         lck: 4,        def: sc(1,1), mdef: sc(5,0.5), move: 5,
         moveCosts: CLASSES.NECROMANCER.moveCosts,
+        weapons: [makeWeapon(`${tier}_TOME`)],
       },
     ];
     const usedPos = new Set();
@@ -191,6 +195,7 @@ class GameMapScene extends Phaser.Scene {
         def:  sc(7, 2),  mdef: sc(4, 0.5), move: 3,
         color: 0xe030e0, symbol: '♚', isBoss: true,
         moveCosts: CLASSES.BULWARK.moveCosts,
+        weapons: [makeWeapon(`${tier}_LANCE`)],
       }));
     }
   }
@@ -470,6 +475,17 @@ class GameMapScene extends Phaser.Scene {
     return (this.selectedUnit?.weapons || []).filter(w => !w.isStaff && !w.isConsumable);
   }
 
+  // Short display type for a weapon (used in the weapon-select panel)
+  _weaponTypeAbbr(w) {
+    const map = { sword:'Sw', lance:'Ln', axe:'Ax', bow:'Bw', tome:'Tm', dark:'Dk', staff:'St', consumable:'It' };
+    return map[w.type] || '--';
+  }
+
+  // Total attack power a unit deals with a specific weapon
+  _weaponAtk(unit, w) {
+    return (w.isMagic ? unit.moj : unit.pow) + (w.might || 0);
+  }
+
   // Enter targeting mode and auto-snap cursor to nearest attackable enemy
   _enterTargeting() {
     this.gameState      = 'targeting';
@@ -535,13 +551,11 @@ class GameMapScene extends Phaser.Scene {
     }
   }
 
-  // Bounding rect for the inventory / weapon-select popup
+  // Bounding rect for the inventory popup (items / item-action states only)
   _invRect() {
     if (!this.selectedUnit) return { x: 4, y: 4, w: 120, h: 24 };
     const { x: sx, y: sy } = this._screenPos(this.selectedUnit.gx, this.selectedUnit.gy);
-    const list = this.gameState === 'weapon-select'
-      ? this._getCombatWeapons()
-      : (this.selectedUnit.weapons || []);
+    const list = this.selectedUnit.weapons || [];
     const w = 120, h = Math.max(1, list.length) * 10 + 4;
     let x = sx + TILE_S + 1;
     if (x + w > GAME_W) x = sx - w - 1;
@@ -608,21 +622,24 @@ class GameMapScene extends Phaser.Scene {
     this.logT = 2500;
     this._resetSelection();
 
-    // Award XP to the player attacker when they kill an enemy.
-    // Floor multiplier keeps XP per kill roughly constant as both level and
-    // floor increase simultaneously.
-    if (attacker.faction === FACTION.PLAYER && !defender.alive) {
-      const floor   = this.saveData.currentLevel;
-      const xpAmt   = defender.isBoss
+    // Award XP for any kill where a player unit is responsible.
+    // Covers both: player attacks and kills, AND enemy attacks but dies on counter.
+    const playerKilledEnemy   = attacker.faction === FACTION.PLAYER && !defender.alive;
+    const counterKilledAttack = defender.faction === FACTION.PLAYER && !attacker.alive;
+    if (playerKilledEnemy || counterKilledAttack) {
+      const playerUnit = playerKilledEnemy ? attacker : defender;
+      const enemyUnit  = playerKilledEnemy ? defender : attacker;
+      const floor      = this.saveData.currentLevel;
+      const xpAmt      = enemyUnit.isBoss
         ? 100
         : Math.max(5, Math.round(
-            40 * Math.pow(0.9, attacker.level - 1) * (1 + (floor - 1) * 0.15)
+            40 * Math.pow(0.9, playerUnit.level - 1) * (1 + (floor - 1) * 0.15)
           ));
-      const startXP = attacker.xp;
-      const result  = attacker.awardXP(xpAmt);
+      const startXP = playerUnit.xp;
+      const result  = playerUnit.awardXP(xpAmt);
       this.xpAnim   = {
-        unit: attacker, amount: xpAmt, startXP,
-        endXP:     result.leveled ? 100 : attacker.xp,
+        unit: playerUnit, amount: xpAmt, startXP,
+        endXP:     result.leveled ? 100 : playerUnit.xp,
         displayXP: startXP,
         duration:  1100,
         elapsed:   0,
@@ -813,7 +830,14 @@ class GameMapScene extends Phaser.Scene {
     ];
     this.txtMenuItems.forEach(t => t.setVisible(false));
 
-    // Inventory / weapon-select list (up to 5 rows)
+    // Weapon-select panel (full-width bar, positioned dynamically)
+    this.txtWselHeader = this.add.text(GAME_W / 2, 0, 'CHOOSE WEAPON', { ...s(5, C.DIM), align: 'center' })
+                           .setOrigin(0.5, 0).setDepth(6).setVisible(false);
+    this.txtWselRows = Array.from({ length: 4 }, () =>
+      this.add.text(10, 0, '', s(5, C.TEXT)).setDepth(6).setVisible(false)
+    );
+
+    // Inventory list (items / item-action states, up to 5 rows)
     this.txtInvItems = Array.from({ length: 5 }, () =>
       this.add.text(0, 0, '', s(5, C.TEXT)).setDepth(6).setVisible(false)
     );
@@ -1010,8 +1034,24 @@ class GameMapScene extends Phaser.Scene {
       g.strokeLineShape(new Phaser.Geom.Line(GAME_W/2, fy + 2, GAME_W/2, fy + 37));
     }
 
-    // ── Inventory / weapon-select panel ────────────────────────────────────
-    if (['weapon-select', 'items', 'item-action'].includes(this.gameState) && this.selectedUnit) {
+    // ── Weapon-select: full-width bar just above the HUD ─────────────────────
+    if (this.gameState === 'weapon-select' && this.selectedUnit) {
+      const cw = this._getCombatWeapons();
+      const ph = 13 + Math.min(4, cw.length) * 11;
+      const py = uy - ph;
+      g.fillStyle(C.PANEL_BG, 0.96);
+      g.fillRect(0, py, GAME_W, ph);
+      g.lineStyle(1, C.PANEL_BD, 1);
+      g.strokeLineShape(new Phaser.Geom.Line(0, py, GAME_W, py));
+      g.lineStyle(0.5, C.PANEL_BD, 0.5);
+      g.strokeLineShape(new Phaser.Geom.Line(8, py + 11, GAME_W - 8, py + 11));
+      // Highlight selected row
+      g.fillStyle(C.SEL_BD, 0.25);
+      g.fillRect(2, py + 13 + this.invCursor * 11, GAME_W - 4, 10);
+    }
+
+    // ── Inventory popup (items / item-action states) ───────────────────────
+    if (['items', 'item-action'].includes(this.gameState) && this.selectedUnit) {
       const r = this._invRect();
       g.fillStyle(C.PANEL_BG, 0.96);
       g.fillRect(r.x, r.y, r.w, r.h);
@@ -1166,12 +1206,33 @@ class GameMapScene extends Phaser.Scene {
       }
     }
 
-    // ── Inventory / weapon-select list ────────────────────────────────────
+    // ── Weapon-select panel ───────────────────────────────────────────────
+    this.txtWselHeader.setVisible(false);
+    this.txtWselRows.forEach(t => t.setVisible(false));
+    if (this.gameState === 'weapon-select' && this.selectedUnit) {
+      const cw = this._getCombatWeapons();
+      const ph = 13 + Math.min(4, cw.length) * 11;
+      const py = uy - ph;
+      this.txtWselHeader.setY(py + 2).setVisible(true);
+      for (let i = 0; i < Math.min(cw.length, 4); i++) {
+        const w    = cw[i];
+        const sel  = i === this.invCursor;
+        const eq   = (w === this.selectedUnit.equippedWeapon) ? '[E]' : '   ';
+        const atk  = this._weaponAtk(this.selectedUnit, w);
+        const type = this._weaponTypeAbbr(w);
+        const nm   = w.name.slice(0, 12).padEnd(12);
+        this.txtWselRows[i]
+          .setText(`${sel ? '>' : ' '} ${eq} ${nm}  Atk:${atk} ${type} ${w.uses}/${w.maxUses}`)
+          .setY(py + 14 + i * 11)
+          .setColor(sel ? C.TITLE : C.TEXT)
+          .setVisible(true);
+      }
+    }
+
+    // ── Inventory list (items / item-action) ──────────────────────────────
     this.txtInvItems.forEach(t => t.setVisible(false));
-    if (['weapon-select', 'items', 'item-action'].includes(this.gameState) && this.selectedUnit) {
-      const list = this.gameState === 'weapon-select'
-        ? this._getCombatWeapons()
-        : (this.selectedUnit.weapons || []);
+    if (['items', 'item-action'].includes(this.gameState) && this.selectedUnit) {
+      const list = this.selectedUnit.weapons || [];
       const r = this._invRect();
       for (let i = 0; i < Math.min(list.length, this.txtInvItems.length); i++) {
         const item  = list[i];
