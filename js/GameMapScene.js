@@ -216,7 +216,11 @@ class GameMapScene extends Phaser.Scene {
 
     if (this.phase === PHASE.GAME_OVER || this.phase === PHASE.VICTORY) {
       if (jd(this.keys.confirm) || jd(this.keys.enter) || jd(this.keys.cancel)) {
-        this.scene.start('MainMenu');
+        if (this.phase === PHASE.VICTORY && !this.runComplete) {
+          this.scene.start('GameMap', { saveData: this.saveData, slotIndex: this.slotIndex });
+        } else {
+          this.scene.start('MainMenu');
+        }
       }
       return;
     }
@@ -755,7 +759,7 @@ class GameMapScene extends Phaser.Scene {
 
     if (!lordAlive) {
       this.phase = PHASE.GAME_OVER;
-    } else if (!enemiesLeft || !bossAlive) {
+    } else if (!bossAlive) {
       this.runComplete = (this.saveData.currentLevel >= MAX_FLOORS);
       this.phase       = PHASE.VICTORY;
 
@@ -1413,7 +1417,7 @@ class GameMapScene extends Phaser.Scene {
         this.txtEndTitle.setText('FLOOR CLEAR').setColor('#f0d060');
         this.txtEndSub.setText(`Advance to floor ${this.saveData.currentLevel}`);
       }
-      this.txtEndHint.setText(this.blinkOn ? 'Press X to return to title' : '');
+      this.txtEndHint.setText(this.blinkOn ? (this.runComplete ? 'Press X to return to title' : 'Press X to continue') : '');
     } else if (this.phase === PHASE.GAME_OVER) {
       this.txtEndTitle.setText('GAME OVER').setColor('#e05050');
       this.txtEndSub.setText('Your lord has fallen.');

@@ -533,7 +533,7 @@ Hit:##%  x#       ║ No counter
 - Defender counter-attacks if alive and adjacent (distance = 1). Counters never double.
 - Speed doubling: attacker hits twice if `SP ≥ foe SP + 4`.
 - Tile defense bonuses (physical only): Plain 0, Forest 1, Mountain 2, Fort 2, Village 1, Throne 3.
-- **Win condition:** Defeat all enemies, or defeat the boss (General).
+- **Win condition:** Defeat the boss (General) on the Throne tile. Remaining regular enemies do not need to be cleared.
 - **Lose condition:** Lord unit is killed.
 
 ### Combat animations
@@ -831,7 +831,7 @@ When the boss is defeated:
 1. The screen shows **"FLOOR CLEAR"** and the next floor number.
 2. The lord's full state (stats, level, XP, weapons, current HP) is saved.
 3. A new random map seed is generated for the next floor.
-4. The player returns to the title screen and can **Continue** to load the next floor.
+4. The player presses X to advance directly to the next floor — no title screen or menu required.
 
 On loading a new floor, the lord receives a **50 % HP restoration** (current HP + ½ of max HP, capped at max HP). All other state (level, XP, inventory) carries over unchanged.
 
