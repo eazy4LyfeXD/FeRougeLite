@@ -217,7 +217,7 @@ class GameMapScene extends Phaser.Scene {
     if (this.phase === PHASE.GAME_OVER || this.phase === PHASE.VICTORY) {
       if (jd(this.keys.confirm) || jd(this.keys.enter) || jd(this.keys.cancel)) {
         if (this.phase === PHASE.VICTORY && !this.runComplete) {
-          this.scene.start('GameMap', { saveData: this.saveData, slotIndex: this.slotIndex });
+          this.scene.start('FloorReward', { saveData: this.saveData, slotIndex: this.slotIndex });
         } else {
           this.scene.start('MainMenu');
         }

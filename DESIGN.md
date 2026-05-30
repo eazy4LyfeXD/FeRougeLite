@@ -831,9 +831,25 @@ When the boss is defeated:
 1. The screen shows **"FLOOR CLEAR"** and the next floor number.
 2. The lord's full state (stats, level, XP, weapons, current HP) is saved.
 3. A new random map seed is generated for the next floor.
-4. The player presses X to advance directly to the next floor — no title screen or menu required.
+4. The player presses X to open the **Floor Reward screen**.
+5. After choosing a reward, the player advances directly to the next floor.
 
 On loading a new floor, the lord receives a **50 % HP restoration** (current HP + ½ of max HP, capped at max HP). All other state (level, XP, inventory) carries over unchanged.
+
+### Floor Reward screen
+
+After every non-final floor clear the player is offered **3 randomly drawn rewards** from the pool below. They pick exactly one before the next floor begins.
+
+| Reward | Effect |
+|---|---|
+| **Repair Items** | All weapons/items gain back half their max uses (`uses += floor(maxUses / 2)`, capped at max). |
+| **Full Heal** | Lord's HP is restored to maximum before the 50 % floor-entry restore is applied (guaranteed full HP entering next floor). |
+| **Level Up** | Lord immediately gains one level; stat bonuses roll against growth rates and the Level Up portrait screen is shown. |
+| **Duplicate Item** | Player browses their inventory and selects one item; a fresh full-uses copy is added. Excluded from the pool if the lord has no items. |
+
+- The reward pool is shuffled each time; the same reward can appear on consecutive floors.
+- "Level Up" does not consume or alter the lord's current XP — the bonus level is on top of normal progression.
+- The Level Up portrait screen (same as in-battle) is shown when that reward is chosen; the player must dismiss it before proceeding.
 
 ### Run completion
 
