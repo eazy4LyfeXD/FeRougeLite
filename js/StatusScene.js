@@ -22,13 +22,13 @@ class StatusScene extends Phaser.Scene {
   }
 
   // ── Layout constants ───────────────────────────────────────────────────────
-  static PX = 8;   static PY = 8;   static PW = 70;  static PH = 102;
-  static SX = 84;  static SY = 8;
-  static PANEL_H  = 144;  // expanded from 132 to fit item list
-  static IX       = 84;   // item list x (same column as stats)
-  static IY_HDR   = 104;  // "ITEMS" label y
-  static IY_START = 113;  // first item row y
-  static I_STEP   = 9;    // px per row
+  static PX = 32;  static PY = 32;  static PW = 280; static PH = 408;
+  static SX = 336; static SY = 32;
+  static PANEL_H  = 576;
+  static IX       = 336;  // item list x
+  static IY_HDR   = 416;  // "ITEMS" label y
+  static IY_START = 452;  // first item row y
+  static I_STEP   = 36;   // px per row
   static I_VIS    = 3;    // max visible rows (scrolls beyond this)
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
@@ -65,46 +65,46 @@ class StatusScene extends Phaser.Scene {
     const { SX: sx, SY: sy, IX: ix,
             PX: px, PY: py, PW: pw, PH: ph,
             IY_HDR, IY_START, I_STEP, I_VIS } = StatusScene;
-    const rx = sx + 76;
+    const rx = sx + 304;
 
     // ── Stats view ─────────────────────────────────────────────────────────
-    this.txtName    = this.add.text(sx, sy + 2,  '', f(10, C.TITLE)).setDepth(3);
-    this.txtClass   = this.add.text(sx, sy + 14, '', f(7, C.SUBTITLE)).setDepth(3);
-    this.txtLevel   = this.add.text(sx, sy + 23, '', f(7, C.DIM)).setDepth(3);
+    this.txtName    = this.add.text(sx, sy + 8,   '', f(28, C.TITLE)).setDepth(3);
+    this.txtClass   = this.add.text(sx, sy + 52,  '', f(18, C.SUBTITLE)).setDepth(3);
+    this.txtLevel   = this.add.text(sx, sy + 80,  '', f(18, C.DIM)).setDepth(3);
 
-    this.txtHP      = this.add.text(sx, sy + 34, '', f(8, C.TEXT)).setDepth(3);
-    this.txtPow     = this.add.text(sx, sy + 47, '', f(8, C.TEXT)).setDepth(3);
-    this.txtSP      = this.add.text(sx, sy + 58, '', f(8, C.TEXT)).setDepth(3);
-    this.txtDef     = this.add.text(sx, sy + 69, '', f(8, C.TEXT)).setDepth(3);
-    this.txtMove    = this.add.text(sx, sy + 80, '', f(8, C.TEXT)).setDepth(3);
-    this.txtMoj     = this.add.text(rx, sy + 47, '', f(8, C.TEXT)).setDepth(3);
-    this.txtLck     = this.add.text(rx, sy + 58, '', f(8, C.TEXT)).setDepth(3);
-    this.txtMDef    = this.add.text(rx, sy + 69, '', f(8, C.TEXT)).setDepth(3);
+    this.txtHP      = this.add.text(sx, sy + 120, '', f(20, C.TEXT)).setDepth(3);
+    this.txtPow     = this.add.text(sx, sy + 168, '', f(20, C.TEXT)).setDepth(3);
+    this.txtSP      = this.add.text(sx, sy + 210, '', f(20, C.TEXT)).setDepth(3);
+    this.txtDef     = this.add.text(sx, sy + 252, '', f(20, C.TEXT)).setDepth(3);
+    this.txtMove    = this.add.text(sx, sy + 294, '', f(20, C.TEXT)).setDepth(3);
+    this.txtMoj     = this.add.text(rx, sy + 168, '', f(20, C.TEXT)).setDepth(3);
+    this.txtLck     = this.add.text(rx, sy + 210, '', f(20, C.TEXT)).setDepth(3);
+    this.txtMDef    = this.add.text(rx, sy + 252, '', f(20, C.TEXT)).setDepth(3);
 
-    this.txtFaction = this.add.text(px + pw / 2, py + ph - 9, '', f(7, '#ffffff'))
+    this.txtFaction = this.add.text(px + pw / 2, py + ph - 36, '', f(18, '#ffffff'))
                         .setOrigin(0.5).setDepth(3);
 
     // Item list
-    this.txtItemsHdr = this.add.text(ix, IY_HDR,  'ITEMS', f(7, C.DIM)).setDepth(3);
-    this.txtItemNone = this.add.text(ix, IY_START, 'None',  f(7, C.DIM)).setDepth(3);
+    this.txtItemsHdr = this.add.text(ix, IY_HDR,  'ITEMS', f(18, C.DIM)).setDepth(3);
+    this.txtItemNone = this.add.text(ix, IY_START, 'None',  f(18, C.DIM)).setDepth(3);
     this.txtItemRows = [];
     for (let i = 0; i < I_VIS; i++) {
       this.txtItemRows.push(
-        this.add.text(ix, IY_START + i * I_STEP, '', f(7, C.TEXT)).setDepth(3)
+        this.add.text(ix, IY_START + i * I_STEP, '', f(18, C.TEXT)).setDepth(3)
       );
     }
 
-    // Shared hint (updated by both views)
-    this.txtHint = this.add.text(GAME_W / 2, 140, '', f(7, C.DIM))
+    // Shared hint
+    this.txtHint = this.add.text(GAME_W / 2, 556, '', f(18, C.DIM))
                      .setOrigin(0.5).setDepth(3);
 
     // ── Item detail view ────────────────────────────────────────────────────
-    this.txtIDName   = this.add.text(14, 14, '', f(11, C.TITLE)).setDepth(3);
-    this.txtIDType   = this.add.text(14, 29, '', f(7, C.SUBTITLE)).setDepth(3);
-    this.txtIDStats  = this.add.text(14, 44, '', f(7, C.TEXT)).setDepth(3);
-    this.txtIDRange  = this.add.text(14, 55, '', f(7, C.TEXT)).setDepth(3);
-    this.txtIDEffect = this.add.text(14, 70, '', f(7, C.SUBTITLE)).setDepth(3);
-    this.txtIDDesc   = this.add.text(14, 84, '', f(7, C.DIM)).setDepth(3);
+    this.txtIDName   = this.add.text(56, 56,  '', f(30, C.TITLE)).setDepth(3);
+    this.txtIDType   = this.add.text(56, 110, '', f(18, C.SUBTITLE)).setDepth(3);
+    this.txtIDStats  = this.add.text(56, 170, '', f(18, C.TEXT)).setDepth(3);
+    this.txtIDRange  = this.add.text(56, 214, '', f(18, C.TEXT)).setDepth(3);
+    this.txtIDEffect = this.add.text(56, 278, '', f(18, C.SUBTITLE)).setDepth(3);
+    this.txtIDDesc   = this.add.text(56, 336, '', f(18, C.DIM)).setDepth(3);
 
     // Group references for bulk visibility toggling
     this._statsGroup = [
@@ -166,9 +166,9 @@ class StatusScene extends Phaser.Scene {
     g.fillRect(0, 0, GAME_W, GAME_H);
 
     g.fillStyle(C.PANEL_BG, 1);
-    g.fillRect(4, 4, GAME_W - 8, PANEL_H);
-    g.lineStyle(1.5, C.PANEL_BD, 1);
-    g.strokeRect(4, 4, GAME_W - 8, PANEL_H);
+    g.fillRect(16, 16, GAME_W - 32, PANEL_H);
+    g.lineStyle(4, C.PANEL_BD, 1);
+    g.strokeRect(16, 16, GAME_W - 32, PANEL_H);
 
     const portColor = Phaser.Display.Color.IntegerToColor(u.color).darken(40).color;
     g.fillStyle(portColor, 1);
@@ -176,23 +176,23 @@ class StatusScene extends Phaser.Scene {
 
     const stripeColor = u.faction === FACTION.PLAYER ? 0x3a5fa0 : 0xa03a3a;
     g.fillStyle(stripeColor, 1);
-    g.fillRect(px, py, pw, 5);
+    g.fillRect(px, py, pw, 20);
 
     g.fillStyle(0x000000, 0.6);
-    g.fillRect(px, py + ph - 14, pw, 14);
+    g.fillRect(px, py + ph - 56, pw, 56);
 
-    g.lineStyle(1.5, u.color, 1);
+    g.lineStyle(4, u.color, 1);
     g.strokeRect(px, py, pw, ph);
 
-    g.lineStyle(1, C.PANEL_BD, 0.8);
-    g.strokeLineShape(new Phaser.Geom.Line(sx, sy + 30, sx + 148, sy + 30));
+    g.lineStyle(2, C.PANEL_BD, 0.8);
+    g.strokeLineShape(new Phaser.Geom.Line(sx, sy + 112, sx + 592, sy + 112));
 
-    g.lineStyle(0.5, C.PANEL_BD, 0.4);
-    g.strokeLineShape(new Phaser.Geom.Line(sx + 73, sy + 34, sx + 73, sy + 96));
+    g.lineStyle(1.5, C.PANEL_BD, 0.4);
+    g.strokeLineShape(new Phaser.Geom.Line(sx + 292, sy + 136, sx + 292, sy + 384));
 
     // Items section separator
-    g.lineStyle(0.5, C.PANEL_BD, 0.6);
-    g.strokeLineShape(new Phaser.Geom.Line(sx, IY_HDR - 3, sx + 148, IY_HDR - 3));
+    g.lineStyle(1.5, C.PANEL_BD, 0.6);
+    g.strokeLineShape(new Phaser.Geom.Line(sx, IY_HDR - 12, sx + 592, IY_HDR - 12));
   }
 
   // ── Item detail background ─────────────────────────────────────────────────
@@ -202,16 +202,16 @@ class StatusScene extends Phaser.Scene {
     g.fillRect(0, 0, GAME_W, GAME_H);
 
     g.fillStyle(C.PANEL_BG, 1);
-    g.fillRect(4, 4, GAME_W - 8, StatusScene.PANEL_H);
-    g.lineStyle(1.5, C.PANEL_BD, 1);
-    g.strokeRect(4, 4, GAME_W - 8, StatusScene.PANEL_H);
+    g.fillRect(16, 16, GAME_W - 32, StatusScene.PANEL_H);
+    g.lineStyle(4, C.PANEL_BD, 1);
+    g.strokeRect(16, 16, GAME_W - 32, StatusScene.PANEL_H);
 
-    g.lineStyle(1, C.PANEL_BD, 0.8);
-    g.strokeLineShape(new Phaser.Geom.Line(14, 38, GAME_W - 14, 38));
+    g.lineStyle(2, C.PANEL_BD, 0.8);
+    g.strokeLineShape(new Phaser.Geom.Line(56, 148, GAME_W - 56, 148));
 
-    g.lineStyle(0.5, C.PANEL_BD, 0.5);
-    g.strokeLineShape(new Phaser.Geom.Line(14, 62, GAME_W - 14, 62));
-    g.strokeLineShape(new Phaser.Geom.Line(14, 78, GAME_W - 14, 78));
+    g.lineStyle(1.5, C.PANEL_BD, 0.5);
+    g.strokeLineShape(new Phaser.Geom.Line(56, 248, GAME_W - 56, 248));
+    g.strokeLineShape(new Phaser.Geom.Line(56, 312, GAME_W - 56, 312));
   }
 
   // ── Fill stats ─────────────────────────────────────────────────────────────

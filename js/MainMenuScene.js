@@ -11,8 +11,8 @@ class MainMenuScene extends Phaser.Scene {
     // Star field (fixed seed)
     this.stars = [];
     const rng  = new SeededRng(99);
-    for (let i = 0; i < 60; i++) {
-      this.stars.push({ x: rng.next() * GAME_W, y: rng.next() * GAME_H, a: 0.2 + rng.next() * 0.6 });
+    for (let i = 0; i < 200; i++) {
+      this.stars.push({ x: rng.next() * GAME_W, y: rng.next() * GAME_H, a: 0.2 + rng.next() * 0.6, r: rng.next() < 0.3 ? 2 : 1 });
     }
 
     this.keys = this.input.keyboard.addKeys({
@@ -36,15 +36,15 @@ class MainMenuScene extends Phaser.Scene {
       fontFamily: '"Barlow Condensed", sans-serif', fontSize: `${size}px`, color,
     });
 
-    this.txtTitle = this.add.text(GAME_W / 2, 22, 'FIRE EMBLEM', { ...style(13, C.TITLE), align: 'center' }).setOrigin(0.5);
-    this.txtSub   = this.add.text(GAME_W / 2, 34, 'ROGUELITE',   { ...style(9,  C.SUBTITLE), align: 'center' }).setOrigin(0.5);
+    this.txtTitle = this.add.text(GAME_W / 2, 88,  'FIRE EMBLEM', { ...style(52, C.TITLE), align: 'center' }).setOrigin(0.5);
+    this.txtSub   = this.add.text(GAME_W / 2, 136, 'ROGUELITE',   { ...style(36, C.SUBTITLE), align: 'center' }).setOrigin(0.5);
 
     const labels = ['NEW GAME', 'CONTINUE', 'EXIT'];
     this.menuTexts = labels.map((lbl, i) =>
-      this.add.text(GAME_W / 2, 88 + i * 18, lbl, { ...style(10, C.TEXT), align: 'center' }).setOrigin(0.5)
+      this.add.text(GAME_W / 2, 352 + i * 72, lbl, { ...style(28, C.TEXT), align: 'center' }).setOrigin(0.5)
     );
 
-    this.txtHint = this.add.text(GAME_W / 2, GAME_H - 5, 'X / Enter : select', style(7, C.DIM)).setOrigin(0.5);
+    this.txtHint = this.add.text(GAME_W / 2, GAME_H - 20, 'X / Enter : select', style(18, C.DIM)).setOrigin(0.5);
   }
 
   update(time, delta) {
@@ -84,31 +84,31 @@ class MainMenuScene extends Phaser.Scene {
     // Stars
     for (const s of this.stars) {
       g.fillStyle(0xffffff, s.a);
-      g.fillRect(s.x, s.y, 1, 1);
+      g.fillRect(s.x, s.y, s.r, s.r);
     }
 
     // Decorative bars
     g.fillStyle(C.PANEL_BD, 1);
-    g.fillRect(0, 0, GAME_W, 2);
-    g.fillRect(0, GAME_H - 2, GAME_W, 2);
+    g.fillRect(0, 0, GAME_W, 8);
+    g.fillRect(0, GAME_H - 8, GAME_W, 8);
 
     // Title panel
     g.fillStyle(C.PANEL_BG, 1);
-    g.fillRect(50, 10, 140, 32);
-    g.lineStyle(1.5, C.PANEL_BD, 1);
-    g.strokeRect(50, 10, 140, 32);
+    g.fillRect(200, 40, 560, 128);
+    g.lineStyle(4, C.PANEL_BD, 1);
+    g.strokeRect(200, 40, 560, 128);
 
     // Menu panel
     g.fillStyle(C.PANEL_BG, 1);
-    g.fillRect(60, 76, 120, 66);
-    g.lineStyle(1.5, C.PANEL_BD, 1);
-    g.strokeRect(60, 76, 120, 66);
+    g.fillRect(280, 296, 400, 264);
+    g.lineStyle(4, C.PANEL_BD, 1);
+    g.strokeRect(280, 296, 400, 264);
 
     // Cursor arrow
     if (this.blinkOn) {
-      const cy = 84 + this.cursor * 18;
+      const cy = 338 + this.cursor * 72;
       g.fillStyle(C.CURSOR, 1);
-      g.fillTriangle(68, cy, 73, cy + 5, 68, cy + 10);
+      g.fillTriangle(292, cy, 314, cy + 20, 292, cy + 40);
     }
 
     // All menu items always white (no greyed-out Continue logic needed here)

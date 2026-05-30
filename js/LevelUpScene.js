@@ -13,8 +13,8 @@ class LevelUpScene extends Phaser.Scene {
   }
 
   // ── Layout (mirrors StatusScene portrait block) ───────────────────────────
-  static PX = 8;  static PY = 8;  static PW = 70; static PH = 102;
-  static SX = 84; static SY = 8;
+  static PX = 32; static PY = 32; static PW = 280; static PH = 408;
+  static SX = 336; static SY = 32;
 
   // ── Stat definitions ──────────────────────────────────────────────────────
   static STAT_KEYS   = ['hp', 'pow', 'moj', 'sp', 'lck', 'def', 'mdef'];
@@ -49,23 +49,23 @@ class LevelUpScene extends Phaser.Scene {
     const f   = (sz, col) => ({ fontFamily: '"Barlow Condensed", sans-serif', fontSize: `${sz}px`, color: col });
     const { SX: sx, SY: sy, PX: px, PY: py, PW: pw, PH: ph } = LevelUpScene;
 
-    this.txtHeader  = this.add.text(sx, sy + 2,  'LEVEL UP!', f(12, C.TITLE)).setDepth(3);
-    this.txtLevel   = this.add.text(sx, sy + 16, '',          f(8, C.SUBTITLE)).setDepth(3);
+    this.txtHeader  = this.add.text(sx, sy + 8,  'LEVEL UP!', f(36, C.TITLE)).setDepth(3);
+    this.txtLevel   = this.add.text(sx, sy + 60, '',          f(22, C.SUBTITLE)).setDepth(3);
 
     this.txtStatLines = [];
     this.txtPlusOne   = [];
     for (let i = 0; i < LevelUpScene.STAT_KEYS.length; i++) {
-      const y = sy + 30 + i * 12;
-      this.txtStatLines.push(this.add.text(sx,      y, '', f(8, C.TEXT)).setDepth(3));
-      this.txtPlusOne.push(  this.add.text(sx + 56, y, '', f(8, C.TITLE)).setDepth(3).setVisible(false));
+      const y = sy + 112 + i * 46;
+      this.txtStatLines.push(this.add.text(sx,       y, '', f(22, C.TEXT)).setDepth(3));
+      this.txtPlusOne.push(  this.add.text(sx + 220, y, '', f(22, C.TITLE)).setDepth(3).setVisible(false));
     }
 
     this.txtFaction = this.add.text(
-      px + pw / 2, py + ph - 9, '', f(7, '#ffffff')
+      px + pw / 2, py + ph - 36, '', f(18, '#ffffff')
     ).setOrigin(0.5).setDepth(3);
 
     this.txtHint = this.add.text(
-      GAME_W / 2, 122, '', f(7, C.DIM)
+      GAME_W / 2, 500, '', f(18, C.DIM)
     ).setOrigin(0.5).setDepth(3);
   }
 
@@ -79,9 +79,9 @@ class LevelUpScene extends Phaser.Scene {
     g.fillRect(0, 0, GAME_W, GAME_H);
 
     g.fillStyle(C.PANEL_BG, 1);
-    g.fillRect(4, 4, GAME_W - 8, 128);
-    g.lineStyle(1.5, C.PANEL_BD, 1);
-    g.strokeRect(4, 4, GAME_W - 8, 128);
+    g.fillRect(16, 16, GAME_W - 32, 520);
+    g.lineStyle(4, C.PANEL_BD, 1);
+    g.strokeRect(16, 16, GAME_W - 32, 520);
 
     const portColor = Phaser.Display.Color.IntegerToColor(u.color).darken(40).color;
     g.fillStyle(portColor, 1);
@@ -89,17 +89,17 @@ class LevelUpScene extends Phaser.Scene {
 
     const stripeColor = u.faction === FACTION.PLAYER ? 0x3a5fa0 : 0xa03a3a;
     g.fillStyle(stripeColor, 1);
-    g.fillRect(px, py, pw, 5);
+    g.fillRect(px, py, pw, 20);
 
     g.fillStyle(0x000000, 0.6);
-    g.fillRect(px, py + ph - 14, pw, 14);
+    g.fillRect(px, py + ph - 56, pw, 56);
 
-    g.lineStyle(1.5, u.color, 1);
+    g.lineStyle(4, u.color, 1);
     g.strokeRect(px, py, pw, ph);
 
     // Divider below the header text
-    g.lineStyle(1, C.PANEL_BD, 0.8);
-    g.strokeLineShape(new Phaser.Geom.Line(sx, sy + 25, sx + 148, sy + 25));
+    g.lineStyle(2, C.PANEL_BD, 0.8);
+    g.strokeLineShape(new Phaser.Geom.Line(sx, sy + 100, sx + 592, sy + 100));
   }
 
   // ── Portrait image or symbol fallback ─────────────────────────────────────

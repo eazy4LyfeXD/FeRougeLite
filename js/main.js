@@ -7,7 +7,7 @@ const config = {
   width:  GAME_W,
   height: GAME_H,
 
-  zoom: 4,   // scales the 240×160 canvas up to ~960×640 on screen
+  zoom: 1,   // game renders natively at 960×640 — no scaling, crisp text
 
   backgroundColor: '#0d0d1a',
 

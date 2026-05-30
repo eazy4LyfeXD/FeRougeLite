@@ -41,18 +41,17 @@ class FileSelectScene extends Phaser.Scene {
   }
 
   // ── Layout constants ────────────────────────────────────────────────────────
-  static SLOT_Y    = [37, 67, 97];  // top-y of each slot panel
-  static SLOT_H    = 24;
-  static SLOT_X    = 20;
-  static SLOT_W    = 200;
+  static SLOT_Y    = [148, 268, 388];  // top-y of each slot panel
+  static SLOT_H    = 96;
+  static SLOT_X    = 80;
+  static SLOT_W    = 800;
 
   _buildText() {
     const s = (sz, col) => ({ fontFamily: '"Barlow Condensed", sans-serif', fontSize: `${sz}px`, color: col });
 
-    this.txtTitle = this.add.text(GAME_W / 2, 10,  'SELECT FILE', s(12, C.TITLE)).setOrigin(0.5);
-    this.txtMode  = this.add.text(GAME_W / 2, 23, this.mode === 'new' ? '-- NEW GAME --' : '-- CONTINUE --', s(8, C.DIM)).setOrigin(0.5);
+    this.txtTitle = this.add.text(GAME_W / 2, 40,  'SELECT FILE', s(44, C.TITLE)).setOrigin(0.5);
+    this.txtMode  = this.add.text(GAME_W / 2, 90, this.mode === 'new' ? '— NEW GAME —' : '— CONTINUE —', s(22, C.DIM)).setOrigin(0.5);
 
-    // Per-slot text objects
     this.slotLabels = [];
     this.slotInfos  = [];
 
@@ -61,19 +60,19 @@ class FileSelectScene extends Phaser.Scene {
       const sx = FileSelectScene.SLOT_X;
 
       this.slotLabels.push(
-        this.add.text(sx + 8, sy + 5, `FILE ${i + 1}`, s(9, C.TEXT)).setDepth(1)
+        this.add.text(sx + 24, sy + 22, `FILE ${i + 1}`, s(26, C.TEXT)).setDepth(1)
       );
       this.slotInfos.push(
-        this.add.text(sx + FileSelectScene.SLOT_W - 8, sy + 5, '', s(9, C.DIM)).setOrigin(1, 0).setDepth(1)
+        this.add.text(sx + FileSelectScene.SLOT_W - 24, sy + 22, '', s(26, C.DIM)).setOrigin(1, 0).setDepth(1)
       );
     }
 
-    this.txtHint = this.add.text(GAME_W / 2, GAME_H - 5,
-      'W/S: move   X: select   Z: back', s(7, C.DIM)).setOrigin(0.5);
+    this.txtHint = this.add.text(GAME_W / 2, GAME_H - 22,
+      'W / S : move     X : select     Z : back', s(18, C.DIM)).setOrigin(0.5);
 
-    // Confirm overlay (overwrite prompt) — hidden by default
-    this.txtConfirmQ    = this.add.text(GAME_W / 2, 68,  'Overwrite save?', s(10, C.TITLE)).setOrigin(0.5).setDepth(10).setVisible(false);
-    this.txtConfirmHint = this.add.text(GAME_W / 2, 85,  'X = YES    Z = NO',  s(8, C.DIM)).setOrigin(0.5).setDepth(10).setVisible(false);
+    // Confirm overlay — hidden by default
+    this.txtConfirmQ    = this.add.text(GAME_W / 2, 272, 'Overwrite save?', s(28, C.TITLE)).setOrigin(0.5).setDepth(10).setVisible(false);
+    this.txtConfirmHint = this.add.text(GAME_W / 2, 330, 'X = YES     Z = NO', s(22, C.DIM)).setOrigin(0.5).setDepth(10).setVisible(false);
   }
 
   // ── Update ─────────────────────────────────────────────────────────────────
@@ -153,12 +152,12 @@ class FileSelectScene extends Phaser.Scene {
     g.fillStyle(C.BG, 1);
     g.fillRect(0, 0, GAME_W, GAME_H);
     g.fillStyle(C.PANEL_BD, 1);
-    g.fillRect(0, 0, GAME_W, 2);
-    g.fillRect(0, GAME_H - 2, GAME_W, 2);
+    g.fillRect(0, 0, GAME_W, 8);
+    g.fillRect(0, GAME_H - 8, GAME_W, 8);
 
     // Hint bar
     g.fillStyle(0x000000, 0.5);
-    g.fillRect(0, GAME_H - 14, GAME_W, 14);
+    g.fillRect(0, GAME_H - 56, GAME_W, 56);
 
     // Slot panels
     for (let i = 0; i < 3; i++) {
@@ -177,7 +176,7 @@ class FileSelectScene extends Phaser.Scene {
       // Border
       const bdColor = sel ? C.SEL_BD : C.PANEL_BD;
       const bdAlpha = dim ? 0.3 : 1;
-      g.lineStyle(sel ? 2 : 1, bdColor, bdAlpha);
+      g.lineStyle(sel ? 6 : 3, bdColor, bdAlpha);
       g.strokeRect(sx, sy, sw, sh);
 
       // Cursor blink bar on selected slot
@@ -207,9 +206,9 @@ class FileSelectScene extends Phaser.Scene {
     const showConfirm = this.screen === 'confirm';
     if (showConfirm) {
       g.fillStyle(C.PANEL_BG, 0.97);
-      g.fillRect(50, 55, 140, 50);
-      g.lineStyle(1.5, C.PANEL_BD, 1);
-      g.strokeRect(50, 55, 140, 50);
+      g.fillRect(200, 220, 560, 200);
+      g.lineStyle(4, C.PANEL_BD, 1);
+      g.strokeRect(200, 220, 560, 200);
     }
     this.txtConfirmQ.setVisible(showConfirm);
     this.txtConfirmHint.setVisible(showConfirm);

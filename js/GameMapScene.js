@@ -645,23 +645,23 @@ class GameMapScene extends Phaser.Scene {
 
   // Bounding rect for the inventory popup (items / item-action states only)
   _invRect() {
-    if (!this.selectedUnit) return { x: 4, y: 4, w: 128, h: 26 };
+    if (!this.selectedUnit) return { x: 16, y: 16, w: 480, h: 80 };
     const { x: sx, y: sy } = this._screenPos(this.selectedUnit.gx, this.selectedUnit.gy);
     const list = this.selectedUnit.weapons || [];
-    const w = 128, h = Math.max(1, list.length) * 12 + 6;
-    let x = sx + TILE_S + 1;
-    if (x + w > GAME_W) x = sx - w - 1;
-    let y = sy - 2;
-    if (y + h > GAME_H - UI_H) y = GAME_H - UI_H - h - 2;
+    const w = 480, h = Math.max(1, list.length) * 48 + 24;
+    let x = sx + TILE_S + 4;
+    if (x + w > GAME_W) x = sx - w - 4;
+    let y = sy - 8;
+    if (y + h > GAME_H - UI_H) y = GAME_H - UI_H - h - 8;
     return { x: Math.max(0, x), y: Math.max(0, y), w, h };
   }
 
   // Bounding rect for the item-action sub-menu (appears beside the selected row)
   _itemActRect(inv) {
-    const w = 56, h = this.itemActOptions.length * 12 + 6;
-    let x = inv.x + inv.w + 1;
-    if (x + w > GAME_W) x = inv.x - w - 1;
-    const y = Math.min(inv.y + 3 + this.invCursor * 12, Math.max(0, GAME_H - UI_H - h - 2));
+    const w = 200, h = this.itemActOptions.length * 48 + 24;
+    let x = inv.x + inv.w + 4;
+    if (x + w > GAME_W) x = inv.x - w - 4;
+    const y = Math.min(inv.y + 12 + this.invCursor * 48, Math.max(0, GAME_H - UI_H - h - 8));
     return { x: Math.max(0, x), y, w, h };
   }
 
@@ -877,38 +877,36 @@ class GameMapScene extends Phaser.Scene {
     const s  = (sz, col) => ({ fontFamily: '"Barlow Condensed", sans-serif', fontSize: `${sz}px`, color: col, depth: 5 });
     const uy = GAME_H - UI_H;
 
-    this.txtPhase    = this.add.text(4, uy + 7,  '', s(9, C.PHASE_P)).setDepth(5);
-    this.txtTurn     = this.add.text(4, uy + 19, '', s(7, C.DIM)).setDepth(5);
-    this.txtUnitName = this.add.text(80, uy + 6,  '', s(9, C.TITLE)).setDepth(5);
-    this.txtUnitInfo = this.add.text(80, uy + 18, '', s(7, C.TEXT)).setDepth(5);
-    this.txtTile     = this.add.text(178, uy + 6,  '', s(7, C.DIM)).setDepth(5);
-    this.txtTileDef  = this.add.text(178, uy + 18, '', s(7, C.DIM)).setDepth(5);
-    // Status message sits above the hint; suppressed when battle log is visible
-    this.txtStatus   = this.add.text(GAME_W/2, uy - 18, '', { ...s(9, C.TITLE), align: 'center' }).setOrigin(0.5).setDepth(5);
-    // Hint anchored to bottom edge of the map area (origin bottom-centre)
-    this.txtHint     = this.add.text(GAME_W/2, uy - 2, '', { ...s(7, C.DIM), align:'center' }).setOrigin(0.5, 1).setDepth(5);
-    this.txtXPLabel  = this.add.text(3, uy - 11, '', s(7, C.TITLE)).setDepth(6).setVisible(false);
+    this.txtPhase    = this.add.text(16,  uy + 22, '', s(26, C.PHASE_P)).setDepth(5);
+    this.txtTurn     = this.add.text(16,  uy + 72, '', s(18, C.DIM)).setDepth(5);
+    this.txtUnitName = this.add.text(320, uy + 18, '', s(26, C.TITLE)).setDepth(5);
+    this.txtUnitInfo = this.add.text(320, uy + 66, '', s(18, C.TEXT)).setDepth(5);
+    this.txtTile     = this.add.text(712, uy + 18, '', s(18, C.DIM)).setDepth(5);
+    this.txtTileDef  = this.add.text(712, uy + 66, '', s(18, C.DIM)).setDepth(5);
+    this.txtStatus   = this.add.text(GAME_W/2, uy - 72, '', { ...s(24, C.TITLE), align: 'center' }).setOrigin(0.5).setDepth(5);
+    this.txtHint     = this.add.text(GAME_W/2, uy - 8,  '', { ...s(18, C.DIM),   align: 'center' }).setOrigin(0.5, 1).setDepth(5);
+    this.txtXPLabel  = this.add.text(12, uy - 44, '', s(18, C.TITLE)).setDepth(6).setVisible(false);
 
     // Battle log (2 lines centred above the HUD)
     this.txtLog = [
-      this.add.text(GAME_W/2, uy - 30, '', { ...s(8, C.TEXT), align: 'center' }).setOrigin(0.5).setDepth(6),
-      this.add.text(GAME_W/2, uy - 18, '', { ...s(8, C.TEXT), align: 'center' }).setOrigin(0.5).setDepth(6),
+      this.add.text(GAME_W/2, uy - 116, '', { ...s(20, C.TEXT), align: 'center' }).setOrigin(0.5).setDepth(6),
+      this.add.text(GAME_W/2, uy - 68,  '', { ...s(20, C.TEXT), align: 'center' }).setOrigin(0.5).setDepth(6),
     ];
 
     // End-screen texts
-    this.txtEndTitle = this.add.text(GAME_W/2, GAME_H/2 - 12, '', { ...s(18, '#f0d060'), align: 'center' }).setOrigin(0.5).setDepth(10);
-    this.txtEndSub   = this.add.text(GAME_W/2, GAME_H/2 + 8,  '', { ...s(9, C.TEXT), align: 'center' }).setOrigin(0.5).setDepth(10);
-    this.txtEndHint  = this.add.text(GAME_W/2, GAME_H/2 + 22, '', { ...s(7, C.DIM), align: 'center' }).setOrigin(0.5).setDepth(10);
+    this.txtEndTitle = this.add.text(GAME_W/2, GAME_H/2 - 48, '', { ...s(56, '#f0d060'), align: 'center' }).setOrigin(0.5).setDepth(10);
+    this.txtEndSub   = this.add.text(GAME_W/2, GAME_H/2 + 30, '', { ...s(26, C.TEXT),    align: 'center' }).setOrigin(0.5).setDepth(10);
+    this.txtEndHint  = this.add.text(GAME_W/2, GAME_H/2 + 80, '', { ...s(20, C.DIM),     align: 'center' }).setOrigin(0.5).setDepth(10);
 
-    // Combat forecast panel (shown when gameState==='targeting'/'execute' and forecastTarget set)
-    const fy = uy - 42;
-    this.txtFcAtkName = this.add.text(4,           fy + 4,  '', s(7, C.PHASE_P)).setDepth(6);
-    this.txtFcAtkInfo = this.add.text(4,           fy + 14, '', s(7, C.TEXT)).setDepth(6);
-    this.txtFcAtkHit  = this.add.text(4,           fy + 25, '', s(7, C.TEXT)).setDepth(6);
-    this.txtFcVs      = this.add.text(GAME_W / 2,  fy + 19, 'vs', { ...s(7, C.DIM), align: 'center' }).setOrigin(0.5).setDepth(6);
-    this.txtFcDefName = this.add.text(GAME_W/2+4,  fy + 4,  '', s(7, C.PHASE_E)).setDepth(6);
-    this.txtFcDefInfo = this.add.text(GAME_W/2+4,  fy + 14, '', s(7, C.TEXT)).setDepth(6);
-    this.txtFcDefHit  = this.add.text(GAME_W/2+4,  fy + 25, '', s(7, C.TEXT)).setDepth(6);
+    // Combat forecast panel
+    const fy = uy - 168;
+    this.txtFcAtkName = this.add.text(16,          fy + 16,  '', s(20, C.PHASE_P)).setDepth(6);
+    this.txtFcAtkInfo = this.add.text(16,          fy + 56,  '', s(18, C.TEXT)).setDepth(6);
+    this.txtFcAtkHit  = this.add.text(16,          fy + 100, '', s(18, C.TEXT)).setDepth(6);
+    this.txtFcVs      = this.add.text(GAME_W / 2,  fy + 76,  'vs', { ...s(20, C.DIM), align: 'center' }).setOrigin(0.5).setDepth(6);
+    this.txtFcDefName = this.add.text(GAME_W/2+16, fy + 16,  '', s(20, C.PHASE_E)).setDepth(6);
+    this.txtFcDefInfo = this.add.text(GAME_W/2+16, fy + 56,  '', s(18, C.TEXT)).setDepth(6);
+    this.txtFcDefHit  = this.add.text(GAME_W/2+16, fy + 100, '', s(18, C.TEXT)).setDepth(6);
     this._fcTexts = [
       this.txtFcAtkName, this.txtFcAtkInfo, this.txtFcAtkHit,
       this.txtFcVs,
@@ -918,28 +916,28 @@ class GameMapScene extends Phaser.Scene {
 
     // Action menu (up to 4 options: ATTACK, EXECUTE, ITEMS, WAIT)
     this.txtMenuItems = [
-      this.add.text(0, 0, '', s(8, C.TEXT)).setDepth(6),
-      this.add.text(0, 0, '', s(8, C.TEXT)).setDepth(6),
-      this.add.text(0, 0, '', s(8, C.TEXT)).setDepth(6),
-      this.add.text(0, 0, '', s(8, C.TEXT)).setDepth(6),
+      this.add.text(0, 0, '', s(22, C.TEXT)).setDepth(6),
+      this.add.text(0, 0, '', s(22, C.TEXT)).setDepth(6),
+      this.add.text(0, 0, '', s(22, C.TEXT)).setDepth(6),
+      this.add.text(0, 0, '', s(22, C.TEXT)).setDepth(6),
     ];
     this.txtMenuItems.forEach(t => t.setVisible(false));
 
     // Weapon-select panel (full-width bar above HUD)
-    this.txtWselHeader = this.add.text(GAME_W / 2, 0, 'CHOOSE WEAPON', { ...s(7, C.DIM), align: 'center' })
+    this.txtWselHeader = this.add.text(GAME_W / 2, 0, 'CHOOSE WEAPON', { ...s(18, C.DIM), align: 'center' })
                            .setOrigin(0.5, 0).setDepth(6).setVisible(false);
     this.txtWselRows = Array.from({ length: 4 }, () =>
-      this.add.text(10, 0, '', s(7, C.TEXT)).setDepth(6).setVisible(false)
+      this.add.text(40, 0, '', s(18, C.TEXT)).setDepth(6).setVisible(false)
     );
 
     // Inventory list (items / item-action states, up to 5 rows)
     this.txtInvItems = Array.from({ length: 5 }, () =>
-      this.add.text(0, 0, '', s(7, C.TEXT)).setDepth(6).setVisible(false)
+      this.add.text(0, 0, '', s(18, C.TEXT)).setDepth(6).setVisible(false)
     );
 
     // Item action sub-menu (USE/EQUIP + DROP)
     this.txtItemAct = Array.from({ length: 2 }, () =>
-      this.add.text(0, 0, '', s(7, C.TEXT)).setDepth(7).setVisible(false)
+      this.add.text(0, 0, '', s(18, C.TEXT)).setDepth(7).setVisible(false)
     );
   }
 
@@ -1016,13 +1014,13 @@ class GameMapScene extends Phaser.Scene {
         g.fillStyle(tc.fill, 1);
         g.fillRect(sx, sy, TILE_S, TILE_S);
 
-        // Shade edges (right & bottom 1px)
+        // Shade edges (right & bottom 4px)
         g.fillStyle(tc.shade, 1);
-        g.fillRect(sx + TILE_S - 1, sy, 1, TILE_S);
-        g.fillRect(sx, sy + TILE_S - 1, TILE_S, 1);
+        g.fillRect(sx + TILE_S - 4, sy, 4, TILE_S);
+        g.fillRect(sx, sy + TILE_S - 4, TILE_S, 4);
 
         // Grid line
-        g.lineStyle(0.5, 0x000000, 0.25);
+        g.lineStyle(1.5, 0x000000, 0.25);
         g.strokeRect(sx, sy, TILE_S, TILE_S);
       }
     }
@@ -1059,32 +1057,32 @@ class GameMapScene extends Phaser.Scene {
         ? Phaser.Display.Color.IntegerToColor(u.color).darken(25).color
         : u.color;
       g.fillStyle(bodyCol, 1);
-      g.fillRect(sx + 1, sy + 1, TILE_S - 2, TILE_S - 5);
+      g.fillRect(sx + 4, sy + 4, TILE_S - 8, TILE_S - 20);
 
       // Border
       const bdCol = u.faction === FACTION.PLAYER ? 0xffffff : 0x000000;
-      g.lineStyle(1, bdCol, 0.8);
-      g.strokeRect(sx + 1, sy + 1, TILE_S - 2, TILE_S - 5);
+      g.lineStyle(3, bdCol, 0.8);
+      g.strokeRect(sx + 4, sy + 4, TILE_S - 8, TILE_S - 20);
 
       // HP bar
       const hpPct = u.hp / u.maxHp;
       g.fillStyle(C.HP_BG, 1);
-      g.fillRect(sx + 1, sy + TILE_S - 3, TILE_S - 2, 2);
+      g.fillRect(sx + 4, sy + TILE_S - 12, TILE_S - 8, 8);
       g.fillStyle(hpPct > 0.4 ? C.HP_FULL : C.HP_LOW, 1);
-      g.fillRect(sx + 1, sy + TILE_S - 3, Math.floor((TILE_S - 2) * hpPct), 2);
+      g.fillRect(sx + 4, sy + TILE_S - 12, Math.floor((TILE_S - 8) * hpPct), 8);
 
       // Lord crown marker
       if (u.isLord) {
         g.fillStyle(C.CURSOR, 1);
-        g.fillRect(sx + 5, sy + 2, 4, 3);
-        g.fillRect(sx + 4, sy + 2, 1, 2);
-        g.fillRect(sx + 10, sy + 2, 1, 2);
+        g.fillRect(sx + 20, sy + 8, 16, 12);
+        g.fillRect(sx + 16, sy + 8,  4,  8);
+        g.fillRect(sx + 40, sy + 8,  4,  8);
       }
 
       // Boss marker
       if (u.isBoss) {
         g.fillStyle(0xff00ff, 1);
-        g.fillRect(sx + 4, sy + 2, 6, 2);
+        g.fillRect(sx + 16, sy + 8, 24, 8);
       }
     }
   }
@@ -1098,12 +1096,12 @@ class GameMapScene extends Phaser.Scene {
     const { x: sx, y: sy } = this._screenPos(this.cursorX, this.cursorY);
     if (sx < -TILE_S || sx > GAME_W || sy < -TILE_S || sy > GAME_H - UI_H) return;
 
-    g.lineStyle(1.5, C.CURSOR, 1);
+    g.lineStyle(4, C.CURSOR, 1);
     g.strokeRect(sx, sy, TILE_S, TILE_S);
 
-    // Corner ticks (GBA-style)
-    const hl = 3;
-    g.lineStyle(2, C.CURSOR, 1);
+    // Corner ticks
+    const hl = 12;
+    g.lineStyle(6, C.CURSOR, 1);
     [[sx, sy],[sx+TILE_S, sy],[sx, sy+TILE_S],[sx+TILE_S, sy+TILE_S]].forEach(([cx, cy]) => {
       const dx = cx === sx ? 1 : -1;
       const dy = cy === sy ? 1 : -1;
@@ -1119,28 +1117,28 @@ class GameMapScene extends Phaser.Scene {
 
     // ── Combat / execute forecast panel (above HUD) ───────────────────────
     if ((this.gameState === 'targeting' || this.gameState === 'execute') && this.forecastTarget) {
-      const fy = uy - 42;
+      const fy = uy - 168;
       g.fillStyle(C.PANEL_BG, 0.95);
-      g.fillRect(0, fy, GAME_W, 42);
-      g.lineStyle(1, C.PANEL_BD, 1);
+      g.fillRect(0, fy, GAME_W, 168);
+      g.lineStyle(3, C.PANEL_BD, 1);
       g.strokeLineShape(new Phaser.Geom.Line(0, fy, GAME_W, fy));
-      g.lineStyle(0.5, C.PANEL_BD, 0.5);
-      g.strokeLineShape(new Phaser.Geom.Line(GAME_W/2, fy + 2, GAME_W/2, fy + 40));
+      g.lineStyle(1.5, C.PANEL_BD, 0.5);
+      g.strokeLineShape(new Phaser.Geom.Line(GAME_W/2, fy + 8, GAME_W/2, fy + 160));
     }
 
     // ── Weapon-select: full-width bar just above the HUD ─────────────────────
     if (this.gameState === 'weapon-select' && this.selectedUnit) {
       const cw = this._getCombatWeapons();
-      const ph = 14 + Math.min(4, cw.length) * 12;
+      const ph = 56 + Math.min(4, cw.length) * 48;
       const py = uy - ph;
       g.fillStyle(C.PANEL_BG, 0.96);
       g.fillRect(0, py, GAME_W, ph);
-      g.lineStyle(1, C.PANEL_BD, 1);
+      g.lineStyle(3, C.PANEL_BD, 1);
       g.strokeLineShape(new Phaser.Geom.Line(0, py, GAME_W, py));
-      g.lineStyle(0.5, C.PANEL_BD, 0.5);
-      g.strokeLineShape(new Phaser.Geom.Line(8, py + 12, GAME_W - 8, py + 12));
+      g.lineStyle(1.5, C.PANEL_BD, 0.5);
+      g.strokeLineShape(new Phaser.Geom.Line(32, py + 48, GAME_W - 32, py + 48));
       g.fillStyle(C.SEL_BD, 0.25);
-      g.fillRect(2, py + 14 + this.invCursor * 12, GAME_W - 4, 11);
+      g.fillRect(8, py + 56 + this.invCursor * 48, GAME_W - 16, 44);
     }
 
     // ── Inventory popup (items / item-action states) ───────────────────────
@@ -1148,19 +1146,19 @@ class GameMapScene extends Phaser.Scene {
       const r = this._invRect();
       g.fillStyle(C.PANEL_BG, 0.96);
       g.fillRect(r.x, r.y, r.w, r.h);
-      g.lineStyle(1.5, C.PANEL_BD, 1);
+      g.lineStyle(4, C.PANEL_BD, 1);
       g.strokeRect(r.x, r.y, r.w, r.h);
       g.fillStyle(C.SEL_BD, 0.2);
-      g.fillRect(r.x + 1, r.y + 3 + this.invCursor * 12, r.w - 2, 11);
+      g.fillRect(r.x + 4, r.y + 12 + this.invCursor * 48, r.w - 8, 44);
 
       if (this.gameState === 'item-action') {
         const ar = this._itemActRect(r);
         g.fillStyle(C.PANEL_BG, 0.96);
         g.fillRect(ar.x, ar.y, ar.w, ar.h);
-        g.lineStyle(1.5, C.PANEL_BD, 1);
+        g.lineStyle(4, C.PANEL_BD, 1);
         g.strokeRect(ar.x, ar.y, ar.w, ar.h);
         g.fillStyle(C.SEL_BD, 0.2);
-        g.fillRect(ar.x + 1, ar.y + 3 + this.itemActCursor * 12, ar.w - 2, 11);
+        g.fillRect(ar.x + 4, ar.y + 12 + this.itemActCursor * 48, ar.w - 8, 44);
       }
     }
 
@@ -1169,31 +1167,29 @@ class GameMapScene extends Phaser.Scene {
       const r = this._menuRect();
       g.fillStyle(C.PANEL_BG, 0.96);
       g.fillRect(r.x, r.y, r.w, r.h);
-      g.lineStyle(1.5, C.PANEL_BD, 1);
+      g.lineStyle(4, C.PANEL_BD, 1);
       g.strokeRect(r.x, r.y, r.w, r.h);
       g.fillStyle(C.SEL_BD, 0.2);
-      g.fillRect(r.x + 1, r.y + 3 + this.menuCursor * 14, r.w - 2, 13);
+      g.fillRect(r.x + 4, r.y + 12 + this.menuCursor * 52, r.w - 8, 48);
     }
 
     // ── XP gain bar (just above HUD, shown while xpAnim is running) ──────────
     if (this.xpAnim) {
-      const by = uy - 10;
+      const by = uy - 40;
       g.fillStyle(0x0d0d24, 0.95);
-      g.fillRect(0, by, GAME_W, 10);
-      g.lineStyle(1, C.PANEL_BD, 0.8);
+      g.fillRect(0, by, GAME_W, 40);
+      g.lineStyle(3, C.PANEL_BD, 0.8);
       g.strokeLineShape(new Phaser.Geom.Line(0, by, GAME_W, by));
-      // Track
-      const barX = 82, barW = GAME_W - 88;
+      const barX = 328, barW = GAME_W - 352;
       g.fillStyle(0x1a1a30, 1);
-      g.fillRect(barX, by + 2, barW, 6);
-      // Fill (gold)
+      g.fillRect(barX, by + 8, barW, 24);
       const fill = Math.floor(barW * Math.min(1, this.xpAnim.displayXP / 100));
       if (fill > 0) {
         g.fillStyle(0xf0d060, 1);
-        g.fillRect(barX, by + 2, fill, 6);
+        g.fillRect(barX, by + 8, fill, 24);
       }
-      g.lineStyle(0.5, C.PANEL_BD, 0.5);
-      g.strokeRect(barX, by + 2, barW, 6);
+      g.lineStyle(1.5, C.PANEL_BD, 0.5);
+      g.strokeRect(barX, by + 8, barW, 24);
     }
 
     // ── Main HUD background ─────────────────────────────────────────────────
@@ -1202,18 +1198,18 @@ class GameMapScene extends Phaser.Scene {
     g.lineStyle(1, C.PANEL_BD, 1);
     g.strokeLineShape(new Phaser.Geom.Line(0, uy, GAME_W, uy));
 
-    g.lineStyle(0.5, C.PANEL_BD, 0.5);
-    g.strokeLineShape(new Phaser.Geom.Line(74,  uy, 74,  GAME_H));
-    g.strokeLineShape(new Phaser.Geom.Line(172, uy, 172, GAME_H));
+    g.lineStyle(1.5, C.PANEL_BD, 0.5);
+    g.strokeLineShape(new Phaser.Geom.Line(296, uy, 296, GAME_H));
+    g.strokeLineShape(new Phaser.Geom.Line(688, uy, 688, GAME_H));
 
     // Battle log background (hidden while forecast is showing)
     const showFcHud = (this.gameState === 'targeting' || this.gameState === 'execute') && !!this.forecastTarget;
     if (this.battleLog.length > 0 && !showFcHud) {
       const rows = this.battleLog.length;
       g.fillStyle(0x0d0d24, 0.92);
-      g.fillRect(20, uy - rows * 14 - 6, GAME_W - 40, rows * 14 + 4);
-      g.lineStyle(1, C.PANEL_BD, 1);
-      g.strokeRect(20, uy - rows * 14 - 6, GAME_W - 40, rows * 14 + 4);
+      g.fillRect(80, uy - rows * 56 - 24, GAME_W - 160, rows * 56 + 16);
+      g.lineStyle(3, C.PANEL_BD, 1);
+      g.strokeRect(80, uy - rows * 56 - 24, GAME_W - 160, rows * 56 + 16);
     }
 
     // End screen overlay
@@ -1226,11 +1222,11 @@ class GameMapScene extends Phaser.Scene {
   // Returns the bounding rect for the action menu popup
   _menuRect() {
     const { x: sx, y: sy } = this._screenPos(this.selectedUnit.gx, this.selectedUnit.gy);
-    const w = 66, h = this.menuOptions.length * 14 + 6;
-    let x = sx + TILE_S + 1;
-    if (x + w > GAME_W) x = sx - w - 1;
-    let y = sy - 2;
-    if (y + h > GAME_H - UI_H) y = GAME_H - UI_H - h - 2;
+    const w = 200, h = this.menuOptions.length * 52 + 24;
+    let x = sx + TILE_S + 4;
+    if (x + w > GAME_W) x = sx - w - 4;
+    let y = sy - 8;
+    if (y + h > GAME_H - UI_H) y = GAME_H - UI_H - h - 8;
     if (y < 0) y = 0;
     return { x, y, w, h };
   }
@@ -1304,8 +1300,8 @@ class GameMapScene extends Phaser.Scene {
       for (let i = 0; i < this.menuOptions.length; i++) {
         const sel = i === this.menuCursor;
         this.txtMenuItems[i]
-          .setText((sel ? '>' : ' ') + ' ' + this.menuOptions[i])
-          .setPosition(r.x + 5, r.y + 3 + i * 14)
+          .setText((sel ? '▶' : '   ') + ' ' + this.menuOptions[i])
+          .setPosition(r.x + 16, r.y + 12 + i * 52)
           .setColor(sel ? C.TITLE : C.TEXT)
           .setVisible(true);
       }
@@ -1316,19 +1312,19 @@ class GameMapScene extends Phaser.Scene {
     this.txtWselRows.forEach(t => t.setVisible(false));
     if (this.gameState === 'weapon-select' && this.selectedUnit) {
       const cw = this._getCombatWeapons();
-      const ph = 14 + Math.min(4, cw.length) * 12;
+      const ph = 56 + Math.min(4, cw.length) * 48;
       const py = uy - ph;
-      this.txtWselHeader.setY(py + 2).setVisible(true);
+      this.txtWselHeader.setY(py + 8).setVisible(true);
       for (let i = 0; i < Math.min(cw.length, 4); i++) {
         const w    = cw[i];
         const sel  = i === this.invCursor;
         const eq   = (w === this.selectedUnit.equippedWeapon) ? '[E]' : '   ';
         const atk  = this._weaponAtk(this.selectedUnit, w);
         const type = this._weaponTypeAbbr(w);
-        const nm   = w.name.slice(0, 14).padEnd(14);
+        const nm   = w.name.slice(0, 16).padEnd(16);
         this.txtWselRows[i]
-          .setText(`${sel ? '>' : ' '} ${eq} ${nm}  Atk:${atk} ${type} ${w.uses}/${w.maxUses}`)
-          .setY(py + 15 + i * 12)
+          .setText(`${sel ? '▶' : ' '} ${eq} ${nm}  Atk:${atk} ${type} ${w.uses}/${w.maxUses}`)
+          .setY(py + 60 + i * 48)
           .setColor(sel ? C.TITLE : C.TEXT)
           .setVisible(true);
       }
@@ -1344,8 +1340,8 @@ class GameMapScene extends Phaser.Scene {
         const isSel = i === this.invCursor;
         const eq    = (item === this.selectedUnit.equippedWeapon) ? '*' : ' ';
         this.txtInvItems[i]
-          .setText(`${isSel ? '>' : ' '}${eq}${item.name}  ${item.uses}/${item.maxUses}`)
-          .setPosition(r.x + 4, r.y + 3 + i * 12)
+          .setText(`${isSel ? '▶' : ' '}${eq} ${item.name}  ${item.uses}/${item.maxUses}`)
+          .setPosition(r.x + 16, r.y + 12 + i * 48)
           .setColor(isSel ? C.TITLE : C.TEXT)
           .setVisible(true);
       }
@@ -1359,8 +1355,8 @@ class GameMapScene extends Phaser.Scene {
       for (let i = 0; i < this.itemActOptions.length; i++) {
         const sel = i === this.itemActCursor;
         this.txtItemAct[i]
-          .setText((sel ? '>' : ' ') + ' ' + this.itemActOptions[i])
-          .setPosition(ar.x + 4, ar.y + 3 + i * 12)
+          .setText((sel ? '▶' : ' ') + ' ' + this.itemActOptions[i])
+          .setPosition(ar.x + 16, ar.y + 12 + i * 48)
           .setColor(sel ? C.TITLE : C.TEXT)
           .setVisible(true);
       }
@@ -1397,10 +1393,10 @@ class GameMapScene extends Phaser.Scene {
         : this.phase === PHASE.PLAYER_TURN ? 'X:select  E:inspect' : ''
     );
 
-    // Battle log (hidden while forecast is shown); spaced well above the hint line
+    // Battle log (hidden while forecast is shown)
     for (let i = 0; i < 2; i++) {
       this.txtLog[i].setText(showFc ? '' : (this.battleLog[i] || ''));
-      this.txtLog[i].setY(uy - (2 - i) * 14 - 4);
+      this.txtLog[i].setY(uy - (2 - i) * 56 - 16);
     }
 
     // End screen

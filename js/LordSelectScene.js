@@ -16,10 +16,10 @@ class LordSelectScene extends Phaser.Scene {
 
     this.gfx = this.add.graphics();
 
-    const cardW  = 60, cardH = 96, gap = 10;
+    const cardW  = 240, cardH = 384, gap = 40;
     const totalW = cardW * 3 + gap * 2;
     this.cardStartX = Math.floor((GAME_W - totalW) / 2);
-    this.cardY      = 38;
+    this.cardY      = 152;
     this.cardW      = cardW;
     this.cardH      = cardH;
 
@@ -40,8 +40,8 @@ class LordSelectScene extends Phaser.Scene {
   _buildText() {
     const s = (sz, col) => ({ fontFamily: '"Barlow Condensed", sans-serif', fontSize: `${sz}px`, color: col });
 
-    this.txtTitle = this.add.text(GAME_W/2, 14, 'CHOOSE YOUR LORD', s(13, C.TITLE)).setOrigin(0.5);
-    this.txtSub   = this.add.text(GAME_W/2, 26, 'Select your hero for this run', s(8, C.DIM)).setOrigin(0.5);
+    this.txtTitle = this.add.text(GAME_W/2, 56,  'CHOOSE YOUR LORD', s(48, C.TITLE)).setOrigin(0.5);
+    this.txtSub   = this.add.text(GAME_W/2, 104, 'Select your hero for this run', s(24, C.DIM)).setOrigin(0.5);
 
     this.cardLabels  = [];
     this.cardClasses = [];
@@ -49,25 +49,25 @@ class LordSelectScene extends Phaser.Scene {
     this.cardSels    = [];
 
     for (let i = 0; i < 3; i++) {
-      const cx = this.cardStartX + i * (this.cardW + 10) + this.cardW / 2;
+      const cx = this.cardStartX + i * (this.cardW + 40) + this.cardW / 2;
       const cy = this.cardY;
 
       this.cardLabels.push(
-        this.add.text(cx, cy + 58, LORD_DEFS[i].label, s(7, C.DIM)).setOrigin(0.5)
+        this.add.text(cx, cy + 236, LORD_DEFS[i].label, s(20, C.DIM)).setOrigin(0.5)
       );
       this.cardClasses.push(
-        this.add.text(cx, cy + 68, LORD_DEFS[i].className, s(8, C.TITLE)).setOrigin(0.5)
+        this.add.text(cx, cy + 266, LORD_DEFS[i].className, s(24, C.TITLE)).setOrigin(0.5)
       );
       this.cardDescs.push(
-        this.add.text(cx, cy + 79, LORD_DEFS[i].desc, s(7, C.TEXT)).setOrigin(0.5)
+        this.add.text(cx, cy + 306, LORD_DEFS[i].desc, s(18, C.TEXT)).setOrigin(0.5)
       );
       this.cardSels.push(
-        this.add.text(cx, cy + 90, '', s(7, C.TITLE)).setOrigin(0.5)
+        this.add.text(cx, cy + 346, '', s(20, C.TITLE)).setOrigin(0.5)
       );
     }
 
-    this.txtHint = this.add.text(GAME_W/2, GAME_H - 5,
-      'A / D / ← → : move     X / Enter : confirm     Z : back', s(7, C.DIM)).setOrigin(0.5);
+    this.txtHint = this.add.text(GAME_W/2, GAME_H - 22,
+      'A / D / ← → : move     X / Enter : confirm     Z : back', s(18, C.DIM)).setOrigin(0.5);
   }
 
   update(time, delta) {
@@ -106,55 +106,54 @@ class LordSelectScene extends Phaser.Scene {
     g.fillStyle(C.BG, 1);
     g.fillRect(0, 0, GAME_W, GAME_H);
     g.fillStyle(C.PANEL_BD, 1);
-    g.fillRect(0, 0, GAME_W, 2);
-    g.fillRect(0, GAME_H - 2, GAME_W, 2);
+    g.fillRect(0, 0, GAME_W, 8);
+    g.fillRect(0, GAME_H - 8, GAME_W, 8);
 
     // Hint bar
     g.fillStyle(0x000000, 0.6);
-    g.fillRect(0, GAME_H - 14, GAME_W, 14);
+    g.fillRect(0, GAME_H - 56, GAME_W, 56);
 
     for (let i = 0; i < 3; i++) {
-      const cx  = this.cardStartX + i * (this.cardW + 10);
+      const cx  = this.cardStartX + i * (this.cardW + 40);
       const cy  = this.cardY;
       const sel = i === this.cursor;
 
       // Card shadow
       g.fillStyle(0x000000, 0.5);
-      g.fillRect(cx + 2, cy + 2, this.cardW, this.cardH);
+      g.fillRect(cx + 8, cy + 8, this.cardW, this.cardH);
 
       // Card body
       g.fillStyle(C.PANEL_BG, 1);
       g.fillRect(cx, cy, this.cardW, this.cardH);
 
       // Card border
-      g.lineStyle(sel ? 2 : 1, sel ? C.SEL_BD : C.PANEL_BD, 1);
+      g.lineStyle(sel ? 6 : 3, sel ? C.SEL_BD : C.PANEL_BD, 1);
       g.strokeRect(cx, cy, this.cardW, this.cardH);
 
       // Portrait area
       const pc = LORD_DEFS[i].color;
       g.fillStyle(sel ? pc : Phaser.Display.Color.IntegerToColor(pc).darken(30).color, 1);
-      g.fillRect(cx + 5, cy + 5, this.cardW - 10, 50);
-      g.lineStyle(1, pc, 1);
-      g.strokeRect(cx + 5, cy + 5, this.cardW - 10, 50);
+      g.fillRect(cx + 20, cy + 20, this.cardW - 40, 200);
+      g.lineStyle(3, pc, 1);
+      g.strokeRect(cx + 20, cy + 20, this.cardW - 40, 200);
 
-      // Select indicator
       this.cardSels[i].setText(sel ? '[ SELECT ]' : '');
     }
 
     // Cursor arrow above selected card
     if (this.blinkOn) {
-      const arrowX = this.cardStartX + this.cursor * (this.cardW + 10) + this.cardW / 2;
+      const arrowX = this.cardStartX + this.cursor * (this.cardW + 40) + this.cardW / 2;
       g.fillStyle(C.CURSOR, 1);
-      g.fillTriangle(arrowX, 33, arrowX - 5, 27, arrowX + 5, 27);
+      g.fillTriangle(arrowX, 132, arrowX - 20, 108, arrowX + 20, 108);
     }
 
     // Selected card tint
     for (let i = 0; i < 3; i++) {
-      const cx  = this.cardStartX + i * (this.cardW + 10);
+      const cx  = this.cardStartX + i * (this.cardW + 40);
       const cy  = this.cardY;
       if (i === this.cursor) {
         g.fillStyle(LORD_DEFS[i].color, 0.25);
-        g.fillRect(cx + 5, cy + 5, this.cardW - 10, 50);
+        g.fillRect(cx + 20, cy + 20, this.cardW - 40, 200);
       }
     }
   }

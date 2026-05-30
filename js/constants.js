@@ -1,8 +1,8 @@
 // ─── constants.js ───────────────────────────────────────────────────────────
 // All magic numbers and shared enums live here.
 
-const GAME_W = 240;
-const GAME_H = 160;
+const GAME_W = 960;
+const GAME_H = 640;
 
 const MAX_FLOORS = 5;   // total floors in a run
 
@@ -126,8 +126,8 @@ const TILE_DEF  = [0, 1, 2, 0, 2, 1, 3, 0, 0];
 // Map dimensions
 const MAP_W  = 15;
 const MAP_H  = 12;
-const TILE_S = 14;   // pixels per tile
-const UI_H   = 30;   // bottom HUD height
+const TILE_S = 56;   // pixels per tile (14 × 4 — game now renders at native 960×640)
+const UI_H   = 120;  // bottom HUD height (30 × 4)
 
 // Factions
 const FACTION = { PLAYER: 0, ENEMY: 1 };
