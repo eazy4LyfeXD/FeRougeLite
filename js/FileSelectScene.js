@@ -47,10 +47,10 @@ class FileSelectScene extends Phaser.Scene {
   static SLOT_W    = 200;
 
   _buildText() {
-    const s = (sz, col) => ({ fontFamily: '"Press Start 2P", monospace', fontSize: `${sz}px`, color: col });
+    const s = (sz, col) => ({ fontFamily: '"Barlow Condensed", sans-serif', fontSize: `${sz}px`, color: col });
 
-    this.txtTitle = this.add.text(GAME_W / 2, 8,  'SELECT FILE', s(8, C.TITLE)).setOrigin(0.5);
-    this.txtMode  = this.add.text(GAME_W / 2, 21, this.mode === 'new' ? '-- NEW GAME --' : '-- CONTINUE --', s(5, C.DIM)).setOrigin(0.5);
+    this.txtTitle = this.add.text(GAME_W / 2, 10,  'SELECT FILE', s(12, C.TITLE)).setOrigin(0.5);
+    this.txtMode  = this.add.text(GAME_W / 2, 23, this.mode === 'new' ? '-- NEW GAME --' : '-- CONTINUE --', s(8, C.DIM)).setOrigin(0.5);
 
     // Per-slot text objects
     this.slotLabels = [];
@@ -61,19 +61,19 @@ class FileSelectScene extends Phaser.Scene {
       const sx = FileSelectScene.SLOT_X;
 
       this.slotLabels.push(
-        this.add.text(sx + 6, sy + 4, `FILE ${i + 1}`, s(6, C.TEXT)).setDepth(1)
+        this.add.text(sx + 8, sy + 5, `FILE ${i + 1}`, s(9, C.TEXT)).setDepth(1)
       );
       this.slotInfos.push(
-        this.add.text(sx + FileSelectScene.SLOT_W - 6, sy + 4, '', s(6, C.DIM)).setOrigin(1, 0).setDepth(1)
+        this.add.text(sx + FileSelectScene.SLOT_W - 8, sy + 5, '', s(9, C.DIM)).setOrigin(1, 0).setDepth(1)
       );
     }
 
     this.txtHint = this.add.text(GAME_W / 2, GAME_H - 5,
-      'W/S: move   X: select   Z: back', s(5, C.DIM)).setOrigin(0.5);
+      'W/S: move   X: select   Z: back', s(7, C.DIM)).setOrigin(0.5);
 
     // Confirm overlay (overwrite prompt) — hidden by default
-    this.txtConfirmQ    = this.add.text(GAME_W / 2, 70,  'Overwrite save?', s(7, C.TITLE)).setOrigin(0.5).setDepth(10).setVisible(false);
-    this.txtConfirmHint = this.add.text(GAME_W / 2, 90, 'X = YES    Z = NO',  s(6, C.DIM)).setOrigin(0.5).setDepth(10).setVisible(false);
+    this.txtConfirmQ    = this.add.text(GAME_W / 2, 68,  'Overwrite save?', s(10, C.TITLE)).setOrigin(0.5).setDepth(10).setVisible(false);
+    this.txtConfirmHint = this.add.text(GAME_W / 2, 85,  'X = YES    Z = NO',  s(8, C.DIM)).setOrigin(0.5).setDepth(10).setVisible(false);
   }
 
   // ── Update ─────────────────────────────────────────────────────────────────

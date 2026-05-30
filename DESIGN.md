@@ -712,9 +712,9 @@ Lords start each run with unique weapons. These weapons are stronger than common
 | Hit | 85 |
 | Crit | 5 |
 | Uses | 15 |
-| **Special** | **Execute** — once per weapon, can instantly KO any non-boss enemy as an option instead of dealing normal damage. **[TBD — requires weapon action menu UI]** |
+| **Special** | **Execute** — once per floor, can instantly KO any non-boss enemy. Appears as a separate **EXECUTE** option in the action menu alongside ATTACK, ITEMS, and WAIT. After use the option disappears for the rest of the floor; resets on the next floor. Cannot target the boss. |
 
-The execute charge is stored on the weapon instance (`effect.charges`). When UI is added, the player will be able to choose whether to trigger it rather than it firing automatically.
+The execute charge is stored on the weapon instance (`effect.charges`). It resets to 1 at the start of every new floor.
 
 ---
 

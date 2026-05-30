@@ -33,18 +33,18 @@ class MainMenuScene extends Phaser.Scene {
 
   _buildText() {
     const style = (size, color) => ({
-      fontFamily: '"Press Start 2P", monospace', fontSize: `${size}px`, color,
+      fontFamily: '"Barlow Condensed", sans-serif', fontSize: `${size}px`, color,
     });
 
-    this.txtTitle = this.add.text(GAME_W / 2, 22, 'FIRE EMBLEM', { ...style(10, C.TITLE), align: 'center' }).setOrigin(0.5);
-    this.txtSub   = this.add.text(GAME_W / 2, 34, 'ROGUELITE',   { ...style(7,  C.SUBTITLE), align: 'center' }).setOrigin(0.5);
+    this.txtTitle = this.add.text(GAME_W / 2, 22, 'FIRE EMBLEM', { ...style(13, C.TITLE), align: 'center' }).setOrigin(0.5);
+    this.txtSub   = this.add.text(GAME_W / 2, 34, 'ROGUELITE',   { ...style(9,  C.SUBTITLE), align: 'center' }).setOrigin(0.5);
 
     const labels = ['NEW GAME', 'CONTINUE', 'EXIT'];
     this.menuTexts = labels.map((lbl, i) =>
-      this.add.text(GAME_W / 2, 88 + i * 16, lbl, { ...style(8, C.TEXT), align: 'center' }).setOrigin(0.5)
+      this.add.text(GAME_W / 2, 88 + i * 18, lbl, { ...style(10, C.TEXT), align: 'center' }).setOrigin(0.5)
     );
 
-    this.txtHint = this.add.text(GAME_W / 2, GAME_H - 5, 'X/Enter: select', style(5, C.DIM)).setOrigin(0.5);
+    this.txtHint = this.add.text(GAME_W / 2, GAME_H - 5, 'X / Enter : select', style(7, C.DIM)).setOrigin(0.5);
   }
 
   update(time, delta) {
@@ -100,15 +100,15 @@ class MainMenuScene extends Phaser.Scene {
 
     // Menu panel
     g.fillStyle(C.PANEL_BG, 1);
-    g.fillRect(70, 78, 100, 58);
+    g.fillRect(60, 76, 120, 66);
     g.lineStyle(1.5, C.PANEL_BD, 1);
-    g.strokeRect(70, 78, 100, 58);
+    g.strokeRect(60, 76, 120, 66);
 
     // Cursor arrow
     if (this.blinkOn) {
-      const cy = 84 + this.cursor * 16;
+      const cy = 84 + this.cursor * 18;
       g.fillStyle(C.CURSOR, 1);
-      g.fillTriangle(78, cy, 83, cy + 4, 78, cy + 8);
+      g.fillTriangle(68, cy, 73, cy + 5, 68, cy + 10);
     }
 
     // All menu items always white (no greyed-out Continue logic needed here)

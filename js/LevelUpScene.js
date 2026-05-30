@@ -46,26 +46,26 @@ class LevelUpScene extends Phaser.Scene {
 
   // ── Build text objects ─────────────────────────────────────────────────────
   _buildText() {
-    const f   = (sz, col) => ({ fontFamily: '"Press Start 2P", monospace', fontSize: `${sz}px`, color: col });
+    const f   = (sz, col) => ({ fontFamily: '"Barlow Condensed", sans-serif', fontSize: `${sz}px`, color: col });
     const { SX: sx, SY: sy, PX: px, PY: py, PW: pw, PH: ph } = LevelUpScene;
 
-    this.txtHeader  = this.add.text(sx, sy + 2,  'LEVEL UP!', f(8, C.TITLE)).setDepth(3);
-    this.txtLevel   = this.add.text(sx, sy + 14, '',          f(5, C.SUBTITLE)).setDepth(3);
+    this.txtHeader  = this.add.text(sx, sy + 2,  'LEVEL UP!', f(12, C.TITLE)).setDepth(3);
+    this.txtLevel   = this.add.text(sx, sy + 16, '',          f(8, C.SUBTITLE)).setDepth(3);
 
     this.txtStatLines = [];
     this.txtPlusOne   = [];
     for (let i = 0; i < LevelUpScene.STAT_KEYS.length; i++) {
-      const y = sy + 29 + i * 11;
-      this.txtStatLines.push(this.add.text(sx,      y, '', f(5, C.TEXT)).setDepth(3));
-      this.txtPlusOne.push(  this.add.text(sx + 48, y, '', f(5, C.TITLE)).setDepth(3).setVisible(false));
+      const y = sy + 30 + i * 12;
+      this.txtStatLines.push(this.add.text(sx,      y, '', f(8, C.TEXT)).setDepth(3));
+      this.txtPlusOne.push(  this.add.text(sx + 56, y, '', f(8, C.TITLE)).setDepth(3).setVisible(false));
     }
 
     this.txtFaction = this.add.text(
-      px + pw / 2, py + ph - 9, '', f(5, '#ffffff')
+      px + pw / 2, py + ph - 9, '', f(7, '#ffffff')
     ).setOrigin(0.5).setDepth(3);
 
     this.txtHint = this.add.text(
-      GAME_W / 2, 122, '', f(5, C.DIM)
+      GAME_W / 2, 122, '', f(7, C.DIM)
     ).setOrigin(0.5).setDepth(3);
   }
 
@@ -115,7 +115,7 @@ class LevelUpScene extends Phaser.Scene {
       this.add.image(px + pw / 2, py + 5 + imgH / 2, portKey)
         .setDisplaySize(pw - 2, imgH).setDepth(5);
     } else {
-      const f = (sz, col) => ({ fontFamily: '"Press Start 2P", monospace', fontSize: `${sz}px`, color: col });
+      const f = (sz, col) => ({ fontFamily: '"Barlow Condensed", sans-serif', fontSize: `${sz}px`, color: col });
       this.add.text(px + pw / 2, py + ph / 2 - 12, u.symbol || '?', f(22, '#ffffff'))
         .setOrigin(0.5).setDepth(5);
     }

@@ -60,7 +60,7 @@ class StatusScene extends Phaser.Scene {
   // ── Build all text objects ─────────────────────────────────────────────────
   _buildAllText() {
     const f = (sz, col) => ({
-      fontFamily: '"Press Start 2P", monospace', fontSize: `${sz}px`, color: col,
+      fontFamily: '"Barlow Condensed", sans-serif', fontSize: `${sz}px`, color: col,
     });
     const { SX: sx, SY: sy, IX: ix,
             PX: px, PY: py, PW: pw, PH: ph,
@@ -68,43 +68,43 @@ class StatusScene extends Phaser.Scene {
     const rx = sx + 76;
 
     // ── Stats view ─────────────────────────────────────────────────────────
-    this.txtName    = this.add.text(sx, sy + 2,  '', f(7, C.TITLE)).setDepth(3);
-    this.txtClass   = this.add.text(sx, sy + 13, '', f(5, C.SUBTITLE)).setDepth(3);
-    this.txtLevel   = this.add.text(sx, sy + 22, '', f(5, C.DIM)).setDepth(3);
+    this.txtName    = this.add.text(sx, sy + 2,  '', f(10, C.TITLE)).setDepth(3);
+    this.txtClass   = this.add.text(sx, sy + 14, '', f(7, C.SUBTITLE)).setDepth(3);
+    this.txtLevel   = this.add.text(sx, sy + 23, '', f(7, C.DIM)).setDepth(3);
 
-    this.txtHP      = this.add.text(sx, sy + 34, '', f(6, C.TEXT)).setDepth(3);
-    this.txtPow     = this.add.text(sx, sy + 48, '', f(6, C.TEXT)).setDepth(3);
-    this.txtSP      = this.add.text(sx, sy + 60, '', f(6, C.TEXT)).setDepth(3);
-    this.txtDef     = this.add.text(sx, sy + 72, '', f(6, C.TEXT)).setDepth(3);
-    this.txtMove    = this.add.text(sx, sy + 84, '', f(6, C.TEXT)).setDepth(3);
-    this.txtMoj     = this.add.text(rx, sy + 48, '', f(6, C.TEXT)).setDepth(3);
-    this.txtLck     = this.add.text(rx, sy + 60, '', f(6, C.TEXT)).setDepth(3);
-    this.txtMDef    = this.add.text(rx, sy + 72, '', f(6, C.TEXT)).setDepth(3);
+    this.txtHP      = this.add.text(sx, sy + 34, '', f(8, C.TEXT)).setDepth(3);
+    this.txtPow     = this.add.text(sx, sy + 47, '', f(8, C.TEXT)).setDepth(3);
+    this.txtSP      = this.add.text(sx, sy + 58, '', f(8, C.TEXT)).setDepth(3);
+    this.txtDef     = this.add.text(sx, sy + 69, '', f(8, C.TEXT)).setDepth(3);
+    this.txtMove    = this.add.text(sx, sy + 80, '', f(8, C.TEXT)).setDepth(3);
+    this.txtMoj     = this.add.text(rx, sy + 47, '', f(8, C.TEXT)).setDepth(3);
+    this.txtLck     = this.add.text(rx, sy + 58, '', f(8, C.TEXT)).setDepth(3);
+    this.txtMDef    = this.add.text(rx, sy + 69, '', f(8, C.TEXT)).setDepth(3);
 
-    this.txtFaction = this.add.text(px + pw / 2, py + ph - 9, '', f(5, '#ffffff'))
+    this.txtFaction = this.add.text(px + pw / 2, py + ph - 9, '', f(7, '#ffffff'))
                         .setOrigin(0.5).setDepth(3);
 
     // Item list
-    this.txtItemsHdr = this.add.text(ix, IY_HDR,  'ITEMS', f(5, C.DIM)).setDepth(3);
-    this.txtItemNone = this.add.text(ix, IY_START, 'None',  f(5, C.DIM)).setDepth(3);
+    this.txtItemsHdr = this.add.text(ix, IY_HDR,  'ITEMS', f(7, C.DIM)).setDepth(3);
+    this.txtItemNone = this.add.text(ix, IY_START, 'None',  f(7, C.DIM)).setDepth(3);
     this.txtItemRows = [];
     for (let i = 0; i < I_VIS; i++) {
       this.txtItemRows.push(
-        this.add.text(ix, IY_START + i * I_STEP, '', f(5, C.TEXT)).setDepth(3)
+        this.add.text(ix, IY_START + i * I_STEP, '', f(7, C.TEXT)).setDepth(3)
       );
     }
 
     // Shared hint (updated by both views)
-    this.txtHint = this.add.text(GAME_W / 2, 140, '', f(5, C.DIM))
+    this.txtHint = this.add.text(GAME_W / 2, 140, '', f(7, C.DIM))
                      .setOrigin(0.5).setDepth(3);
 
     // ── Item detail view ────────────────────────────────────────────────────
-    this.txtIDName   = this.add.text(14, 14, '', f(8, C.TITLE)).setDepth(3);
-    this.txtIDType   = this.add.text(14, 28, '', f(5, C.SUBTITLE)).setDepth(3);
-    this.txtIDStats  = this.add.text(14, 44, '', f(5, C.TEXT)).setDepth(3);
-    this.txtIDRange  = this.add.text(14, 54, '', f(5, C.TEXT)).setDepth(3);
-    this.txtIDEffect = this.add.text(14, 68, '', f(5, C.SUBTITLE)).setDepth(3);
-    this.txtIDDesc   = this.add.text(14, 82, '', f(5, C.DIM)).setDepth(3);
+    this.txtIDName   = this.add.text(14, 14, '', f(11, C.TITLE)).setDepth(3);
+    this.txtIDType   = this.add.text(14, 29, '', f(7, C.SUBTITLE)).setDepth(3);
+    this.txtIDStats  = this.add.text(14, 44, '', f(7, C.TEXT)).setDepth(3);
+    this.txtIDRange  = this.add.text(14, 55, '', f(7, C.TEXT)).setDepth(3);
+    this.txtIDEffect = this.add.text(14, 70, '', f(7, C.SUBTITLE)).setDepth(3);
+    this.txtIDDesc   = this.add.text(14, 84, '', f(7, C.DIM)).setDepth(3);
 
     // Group references for bulk visibility toggling
     this._statsGroup = [
@@ -133,7 +133,7 @@ class StatusScene extends Phaser.Scene {
         .setDisplaySize(pw - 2, imgH).setDepth(5);
     } else {
       const f = (sz, col) => ({
-        fontFamily: '"Press Start 2P", monospace', fontSize: `${sz}px`, color: col,
+        fontFamily: '"Barlow Condensed", sans-serif', fontSize: `${sz}px`, color: col,
       });
       this.portImg = this.add.text(px + pw / 2, py + ph / 2 - 12, u.symbol || '?', f(22, '#ffffff'))
         .setOrigin(0.5).setDepth(5);

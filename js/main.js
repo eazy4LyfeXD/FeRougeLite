@@ -12,10 +12,10 @@ const config = {
   backgroundColor: '#0d0d1a',
 
   render: {
-    pixelArt:         true,
-    antialias:        false,
-    antialiasGL:      false,
-    roundPixels:      true,
+    pixelArt:         false,
+    antialias:        true,
+    antialiasGL:      true,
+    roundPixels:      false,
   },
 
   scene: [

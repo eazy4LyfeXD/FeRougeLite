@@ -16,7 +16,7 @@ class LordSelectScene extends Phaser.Scene {
 
     this.gfx = this.add.graphics();
 
-    const cardW  = 60, cardH = 90, gap = 10;
+    const cardW  = 60, cardH = 96, gap = 10;
     const totalW = cardW * 3 + gap * 2;
     this.cardStartX = Math.floor((GAME_W - totalW) / 2);
     this.cardY      = 38;
@@ -38,10 +38,10 @@ class LordSelectScene extends Phaser.Scene {
   }
 
   _buildText() {
-    const s = (sz, col) => ({ fontFamily: '"Press Start 2P", monospace', fontSize: `${sz}px`, color: col });
+    const s = (sz, col) => ({ fontFamily: '"Barlow Condensed", sans-serif', fontSize: `${sz}px`, color: col });
 
-    this.txtTitle = this.add.text(GAME_W/2, 14, 'CHOOSE YOUR LORD', s(10, C.TITLE)).setOrigin(0.5);
-    this.txtSub   = this.add.text(GAME_W/2, 26, 'Select your hero for this run', s(6, C.DIM)).setOrigin(0.5);
+    this.txtTitle = this.add.text(GAME_W/2, 14, 'CHOOSE YOUR LORD', s(13, C.TITLE)).setOrigin(0.5);
+    this.txtSub   = this.add.text(GAME_W/2, 26, 'Select your hero for this run', s(8, C.DIM)).setOrigin(0.5);
 
     this.cardLabels  = [];
     this.cardClasses = [];
@@ -53,21 +53,21 @@ class LordSelectScene extends Phaser.Scene {
       const cy = this.cardY;
 
       this.cardLabels.push(
-        this.add.text(cx, cy + 57, LORD_DEFS[i].label, s(6, C.DIM)).setOrigin(0.5)
+        this.add.text(cx, cy + 58, LORD_DEFS[i].label, s(7, C.DIM)).setOrigin(0.5)
       );
       this.cardClasses.push(
-        this.add.text(cx, cy + 67, LORD_DEFS[i].className, s(6, C.TITLE)).setOrigin(0.5)
+        this.add.text(cx, cy + 68, LORD_DEFS[i].className, s(8, C.TITLE)).setOrigin(0.5)
       );
       this.cardDescs.push(
-        this.add.text(cx, cy + 78, LORD_DEFS[i].desc, s(5, C.TEXT)).setOrigin(0.5)
+        this.add.text(cx, cy + 79, LORD_DEFS[i].desc, s(7, C.TEXT)).setOrigin(0.5)
       );
       this.cardSels.push(
-        this.add.text(cx, cy + 88, '', s(5, C.TITLE)).setOrigin(0.5)
+        this.add.text(cx, cy + 90, '', s(7, C.TITLE)).setOrigin(0.5)
       );
     }
 
     this.txtHint = this.add.text(GAME_W/2, GAME_H - 5,
-      'A/D/← →: move  X/Enter: ok  Z: back', s(5, C.DIM)).setOrigin(0.5);
+      'A / D / ← → : move     X / Enter : confirm     Z : back', s(7, C.DIM)).setOrigin(0.5);
   }
 
   update(time, delta) {

@@ -203,9 +203,13 @@ const WEAPON_DATA = {
   SWIFT_BLADE:   { name: 'Swift Blade',    type: 'sword', tier: 'special', might:  4, hit: 90, crit: 0, uses: 20, maxUses: 20, range: [1,1], effect: { type: 'effective', vsWeapon: 'axe',    multiplier: 2 },        desc: 'Honed for quick strikes.' },
 };
 
-// Clone a weapon template into a fresh instance (each unit tracks uses independently).
+// Clone a weapon template into a fresh instance.
+// The effect object is also cloned so mutable fields like charges are independent.
 function makeWeapon(key) {
-  return Object.assign({}, WEAPON_DATA[key]);
+  const t = WEAPON_DATA[key];
+  const w = Object.assign({}, t);
+  if (w.effect) w.effect = Object.assign({}, w.effect);
+  return w;
 }
 
 // Lord definitions — base stats, growth rates, class identity, and movement costs
