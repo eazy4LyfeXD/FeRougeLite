@@ -3,7 +3,7 @@
 class Unit {
   constructor({
     name, faction, gx, gy,
-    hp, pow = 0, mag = 0, sp = 0, lck = 0, def = 0, mdef = 0, move,
+    hp, pow = 0, mag = 0, sp = 0, lck = 0, def = 0, mdef = 0, move, abilities = [],
     color, symbol,
     level = 1, growths = null, moveCosts = null,
     className = '', isLord = false, isBoss = false,
@@ -38,7 +38,7 @@ class Unit {
     this.weapons        = weapons.slice();
     this.equippedWeapon = this.weapons.find(w => !w.isStaff) || this.weapons[0] || null;
     this.statusEffects  = [];
-    this.abilities      = [];   // passive abilities granted during a run
+    this.abilities      = abilities.slice();
     this.xp             = 0;   // 0–99; fills to 100 = level-up
   }
 

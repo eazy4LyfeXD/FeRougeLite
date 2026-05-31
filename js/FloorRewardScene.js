@@ -12,10 +12,47 @@ class FloorRewardScene extends Phaser.Scene {
 
   // ── Upgrade pool ─────────────────────────────────────────────────────────────
   static POOL = [
-    { id: 'repair',    label: 'Repair Items',  desc: 'Restore all items by half their max uses.'      },
-    { id: 'full_heal', label: 'Full Heal',      desc: 'Fully restore the lord\'s HP.'                  },
-    { id: 'level_up',  label: 'Level Up',       desc: 'Gain one level. Stat bonuses roll immediately.' },
-    { id: 'duplicate', label: 'Duplicate Item', desc: 'Select one item to receive a full-uses copy.'   },
+    { id: 'repair',          label: 'Repair Items',    desc: 'Restore all items by half their max uses.'              },
+    { id: 'full_heal',       label: 'Full Heal',        desc: 'Fully restore the lord\'s HP.'                          },
+    { id: 'level_up',        label: 'Level Up',         desc: 'Gain one level. Stat bonuses roll immediately.'         },
+    { id: 'duplicate',       label: 'Duplicate Item',   desc: 'Select one item to receive a full-uses copy.'           },
+    { id: 'recruit_young',   label: 'Recruit: Rookie',  desc: 'A Grunt or Clergy joins — high potential, low bases.'   },
+    { id: 'recruit_veteran', label: 'Recruit: Veteran', desc: 'A Bulwark or Fletcher joins — high bases, slow growth.' },
+  ];
+
+  // ── Recruitable unit templates ────────────────────────────────────────────────
+  static YOUNG_RECRUITS = [
+    {
+      name: 'Grunt', className: 'Grunt', color: 0x4080b0, symbol: '♙',
+      level: 1,
+      stats:   { hp: 14, pow: 5,  mag: 0, sp: 4, lck: 3, def: 5,  mdef: 2, move: 4 },
+      growths: { hp: 80, pow: 65, mag: 0, sp: 55, lck: 45, def: 70, mdef: 20 },
+      weapons: ['WOOD_LANCE', 'HEALING_POTION'],
+    },
+    {
+      name: 'Clergy', className: 'Clergy', color: 0xc0a030, symbol: '♗',
+      level: 1,
+      stats:   { hp: 11, pow: 2,  mag: 9, sp: 5, lck: 7, def: 2,  mdef: 8, move: 5 },
+      growths: { hp: 55, pow: 5,  mag: 90, sp: 65, lck: 75, def: 10, mdef: 85 },
+      weapons: ['WOOD_TOME', 'HEAL', 'HEALING_POTION'],
+    },
+  ];
+
+  static VETERAN_RECRUITS = [
+    {
+      name: 'Bulwark', className: 'Bulwark', color: 0x607060, symbol: '♖',
+      level: 7,
+      stats:   { hp: 38, pow: 15, mag: 1, sp: 4,  lck: 6, def: 18, mdef: 6, move: 4 },
+      growths: { hp: 50, pow: 30, mag: 5, sp: 15, lck: 20, def: 45, mdef: 10 },
+      weapons: ['BRONZE_LANCE', 'HEALING_POTION'],
+    },
+    {
+      name: 'Fletcher', className: 'Fletcher', color: 0x50a090, symbol: '♘',
+      level: 7,
+      stats:   { hp: 28, pow: 13, mag: 0, sp: 10, lck: 7, def: 7,  mdef: 4, move: 6 },
+      growths: { hp: 35, pow: 30, mag: 0, sp: 25, lck: 30, def: 20, mdef: 10 },
+      weapons: ['BRONZE_SWORD', 'BRONZE_BOW', 'HEALING_POTION'],
+    },
   ];
 
   create() {
@@ -75,10 +112,17 @@ class FloorRewardScene extends Phaser.Scene {
     return lord;
   }
 
-  // ── Pick n distinct upgrades; exclude 'duplicate' if inventory is empty ───────
+  // ── Pick n distinct upgrades ─────────────────────────────────────────────────
+  // 'duplicate' excluded if inventory is empty.
+  // recruit options only appear after floor 1 (currentLevel === 2 at reward time).
   _pickUpgrades(n) {
-    const hasItems = (this.saveData.playerStats?.weapons || []).length > 0;
-    const pool     = FloorRewardScene.POOL.filter(u => u.id !== 'duplicate' || hasItems);
+    const hasItems     = (this.saveData.playerStats?.weapons || []).length > 0;
+    const afterFloor1  = this.saveData.currentLevel === 2;
+    const pool = FloorRewardScene.POOL.filter(u => {
+      if (u.id === 'duplicate'                                        && !hasItems)    return false;
+      if ((u.id === 'recruit_young' || u.id === 'recruit_veteran')   && !afterFloor1) return false;
+      return true;
+    });
     const shuffled = pool.slice().sort(() => Math.random() - 0.5);
     return shuffled.slice(0, Math.min(n, shuffled.length));
   }
@@ -179,6 +223,22 @@ class FloorRewardScene extends Phaser.Scene {
         this.itemCursor = 0;
         this.gameState  = 'item-pick';
         break;
+
+      case 'recruit_young': {
+        const pool = FloorRewardScene.YOUNG_RECRUITS;
+        this._addAllyToSave(pool[Math.floor(Math.random() * pool.length)]);
+        this._saveLordStats();
+        this._fadeToGameMap();
+        break;
+      }
+
+      case 'recruit_veteran': {
+        const pool = FloorRewardScene.VETERAN_RECRUITS;
+        this._addAllyToSave(pool[Math.floor(Math.random() * pool.length)]);
+        this._saveLordStats();
+        this._fadeToGameMap();
+        break;
+      }
     }
   }
 
@@ -192,6 +252,33 @@ class FloorRewardScene extends Phaser.Scene {
     this.lordUnit.weapons.push(copy);
     this._saveLordStats();
     this._fadeToGameMap();
+  }
+
+  // ── Add a recruited ally to saveData.allies ──────────────────────────────────
+  _addAllyToSave(template) {
+    const weapons = template.weapons.map(key => makeWeapon(key));
+    if (!this.saveData.allies) this.saveData.allies = [];
+    this.saveData.allies.push({
+      name:        template.name,
+      className:   template.className,
+      color:       template.color,
+      symbol:      template.symbol,
+      level:       template.level || 1,
+      xp:          0,
+      maxHp:       template.stats.hp,
+      hp:          template.stats.hp,
+      pow:         template.stats.pow,
+      mag:         template.stats.mag,
+      sp:          template.stats.sp,
+      lck:         template.stats.lck,
+      def:         template.stats.def,
+      mdef:        template.stats.mdef,
+      move:        template.stats.move,
+      growths:     { ...template.growths },
+      weapons:     weapons.map(w => ({ ...w })),
+      equippedIdx: Math.max(0, weapons.findIndex(w => !w.isStaff && !w.isConsumable)),
+      abilities:   [],
+    });
   }
 
   // ── Write lord state back into saveData and persist to localStorage ───────────

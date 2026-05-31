@@ -155,6 +155,51 @@ class GameMapScene extends Phaser.Scene {
       lord.hp = Math.min(lord.maxHp, lord.hp + Math.floor(lord.maxHp / 2));
     }
 
+    // ── Allies (recruited in previous floors) ────────────────────────────────
+    const allySpots = [
+      { x: 1, y: midY + 1 }, { x: 1, y: midY - 1 },
+      { x: 2, y: midY },     { x: 2, y: midY + 1 },
+      { x: 2, y: midY - 1 }, { x: 3, y: midY },
+    ];
+    let spotIdx = 0;
+    for (const ad of (this.saveData.allies || [])) {
+      // Find the next passable, unoccupied spawn spot
+      while (spotIdx < allySpots.length) {
+        const sp = allySpots[spotIdx];
+        if (this._tilePassable(sp.x, sp.y) && !this._unitAt(sp.x, sp.y)) break;
+        spotIdx++;
+      }
+      if (spotIdx >= allySpots.length) break;
+      const pos = allySpots[spotIdx++];
+
+      const classKey  = ad.className.toUpperCase().replace(/\s+/g, '_');
+      const moveCosts = CLASSES[classKey]?.moveCosts || MOVE_COST;
+      const allyWeapons = (ad.weapons || []).map(w => {
+        const c = { ...w };
+        if (c.effect) c.effect = { ...c.effect };
+        if (c.effect?.type === 'execute') c.effect.charges = 1;
+        return c;
+      });
+
+      const ally = new Unit({
+        name: ad.name, className: ad.className, faction: FACTION.PLAYER,
+        gx: pos.x, gy: pos.y,
+        hp: ad.maxHp, pow: ad.pow, mag: ad.mag,
+        sp: ad.sp, lck: ad.lck, def: ad.def, mdef: ad.mdef, move: ad.move,
+        level: ad.level || 1, growths: { ...ad.growths }, moveCosts,
+        color: ad.color, symbol: ad.symbol || '♟',
+        weapons: allyWeapons,
+      });
+      ally.xp          = ad.xp || 0;
+      ally.abilities   = ad.abilities ? [...ad.abilities] : [];
+      ally.hp          = Math.min(ad.maxHp, ad.hp + Math.floor(ad.maxHp / 2));
+      ally.equippedWeapon =
+        (ad.equippedIdx >= 0 ? ally.weapons[ad.equippedIdx] : null)
+        || ally.weapons.find(w => !w.isStaff && !w.isConsumable)
+        || ally.weapons[0] || null;
+      this.units.push(ally);
+    }
+
     // ── Enemies (scaled by floor) ────────────────────────────────────────────
     const sc   = (base, perFloor) => base + Math.round(fMod * perFloor);
     // Weapon tier: Wood (fl 1) → Bronze (fl 2-3) → Iron (fl 4-5)
@@ -164,26 +209,35 @@ class GameMapScene extends Phaser.Scene {
       {
         name: 'Grunt',       className: 'Grunt',
         color: 0xc04040, symbol: '♟',
-        hp: sc(14,3), pow: sc(7,1),  mag: 0,       sp: sc(4,0.5),
-        lck: 2,        def: sc(4,1), mdef: sc(2,0.5), move: 4,
+        hp: sc(14,3), pow: sc(7,1),   mag: 0,        sp: sc(4,0.5),
+        lck: 2,        def: sc(4,1),  mdef: sc(2,0.5), move: 4,
         moveCosts: CLASSES.GRUNT.moveCosts,
         weapons: [makeWeapon(`${tier}_LANCE`)],
       },
       {
         name: 'Fletcher',    className: 'Fletcher',
         color: 0xc07030, symbol: '♝',
-        hp: sc(12,3), pow: sc(8,1),  mag: 0,       sp: sc(6,0.5),
-        lck: 3,        def: sc(2,1), mdef: sc(1,0.5), move: 6,
+        hp: sc(12,3), pow: sc(8,1),   mag: 0,        sp: sc(6,0.5),
+        lck: 3,        def: sc(2,1),  mdef: sc(1,0.5), move: 6,
         moveCosts: CLASSES.FLETCHER.moveCosts,
         weapons: [makeWeapon(`${tier}_SWORD`)],
       },
       {
         name: 'Necromancer', className: 'Necromancer',
         color: 0x9030c0, symbol: '♜',
-        hp: sc(10,3), pow: 2,        mag: sc(10,1), sp: sc(5,0.5),
-        lck: 4,        def: sc(1,1), mdef: sc(5,0.5), move: 5,
+        hp: sc(10,3), pow: 2,          mag: sc(10,1), sp: sc(5,0.5),
+        lck: 4,        def: sc(1,1),   mdef: sc(5,0.5), move: 5,
         moveCosts: CLASSES.NECROMANCER.moveCosts,
         weapons: [makeWeapon(`${tier}_TOME`)],
+      },
+      {
+        name: 'Vagabond',    className: 'Vagabond',
+        color: 0xe08020, symbol: '†',
+        hp: sc(10,2.5), pow: sc(8,1), mag: 0,          sp: sc(9,1),
+        lck: sc(4,0.5), def: sc(3,0.5), mdef: sc(2,0.5), move: 5,
+        moveCosts: CLASSES.VAGABOND.moveCosts,
+        abilities: ['hi_crit'],
+        weapons: [makeWeapon(`${tier}_SWORD`)],
       },
     ];
     const usedPos = new Set();
@@ -200,18 +254,78 @@ class GameMapScene extends Phaser.Scene {
       }
     }
 
-    // ── Boss (scales faster than regulars) ────────────────────────────────────
+    // ── Boss (random type, scales faster than regulars) ───────────────────────
     if (this.thronePos && !this._unitAt(this.thronePos.x, this.thronePos.y)) {
+      const bossPool = [
+        {
+          name: 'General',      className: 'Bulwark',
+          color: 0xe030e0, symbol: '♚',
+          hp: sc(30,8), pow: sc(12,2), mag: 2,           sp: sc(4,0.5),
+          lck: 5,        def: sc(7,2), mdef: sc(4,0.5),  move: 3,
+          moveCosts: CLASSES.BULWARK.moveCosts,
+          weapons: [makeWeapon(`${tier}_LANCE`)],
+          abilities: [],
+        },
+        {
+          name: 'Blade Master', className: 'Vagabond',
+          color: 0xff6020, symbol: '✦',
+          hp: sc(22,6), pow: sc(14,2.5), mag: 0,          sp: sc(14,1.5),
+          lck: sc(7,0.5), def: sc(4,1),  mdef: sc(3,0.5), move: 5,
+          moveCosts: CLASSES.VAGABOND.moveCosts,
+          weapons: [makeWeapon(`${tier}_SWORD`)],
+          abilities: ['hi_crit'],
+        },
+        {
+          name: 'Archmage',     className: 'Necromancer',
+          color: 0x7020c0, symbol: '♜',
+          hp: sc(20,5), pow: 2,           mag: sc(15,2.5), sp: sc(7,1),
+          lck: sc(5,0.5), def: sc(2,0.5), mdef: sc(10,1.5), move: 4,
+          moveCosts: CLASSES.NECROMANCER.moveCosts,
+          weapons: [makeWeapon(`${tier}_TOME`)],
+          abilities: [],
+        },
+        {
+          name: 'Warlord',      className: 'Fletcher',
+          color: 0xd08000, symbol: '♞',
+          hp: sc(24,6), pow: sc(13,2),  mag: 0,           sp: sc(10,1),
+          lck: sc(6,0.5), def: sc(6,1), mdef: sc(4,0.5),  move: 6,
+          moveCosts: CLASSES.FLETCHER.moveCosts,
+          weapons: [makeWeapon(`${tier}_SWORD`)],
+          abilities: [],
+        },
+      ];
+      const bt = this.mapRng.pick(bossPool);
       this.units.push(new Unit({
-        name: 'General', className: 'Bulwark', faction: FACTION.ENEMY,
+        ...bt, faction: FACTION.ENEMY, isBoss: true,
         gx: this.thronePos.x, gy: this.thronePos.y,
-        hp:   sc(30, 8), pow: sc(12, 2), mag: 3,
-        sp:   sc(4, 0.5), lck: 5,
-        def:  sc(7, 2),  mdef: sc(4, 0.5), move: 3,
-        color: 0xe030e0, symbol: '♚', isBoss: true,
-        moveCosts: CLASSES.BULWARK.moveCosts,
-        weapons: [makeWeapon(`${tier}_LANCE`)],
       }));
+    }
+
+    // ── Recruitable Vagabond (33 % chance per floor) ──────────────────────────
+    if (Math.random() < 0.33) {
+      const vagGrowths = { hp: 55, pow: 75, mag: 0, sp: 80, lck: 50, def: 30, mdef: 20 };
+      let vattempts = 0;
+      while (vattempts < 150) {
+        vattempts++;
+        const vx = Math.floor(Math.random() * (MAP_W - 4)) + 2;
+        const vy = Math.floor(Math.random() * (MAP_H - 2)) + 1;
+        if (this._tilePassable(vx, vy) && !this._unitAt(vx, vy)) {
+          const vUnit = new Unit({
+            name: 'Guy', className: 'Vagabond', faction: FACTION.NEUTRAL,
+            gx: vx, gy: vy,
+            hp: sc(14,2), pow: sc(9,1.5), mag: 0, sp: sc(10,1),
+            lck: sc(5,0.5), def: sc(4,0.5), mdef: sc(2,0.5), move: 5,
+            level: Math.max(1, floor),
+            growths: vagGrowths,
+            moveCosts: CLASSES.VAGABOND.moveCosts,
+            color: 0xe0a020, symbol: '†', abilities: ['hi_crit'],
+            weapons: [makeWeapon(`${tier}_SWORD`), makeWeapon('HEALING_POTION')],
+          });
+          vUnit.isRecruitable = true;
+          this.units.push(vUnit);
+          break;
+        }
+      }
     }
   }
 
@@ -280,6 +394,12 @@ class GameMapScene extends Phaser.Scene {
         ? t : null;
     }
     if (this.gameState === 'execute') {
+      const t = this._unitAt(this.cursorX, this.cursorY);
+      this.forecastTarget = (t && t.faction === FACTION.ENEMY && !t.isBoss &&
+                             this.attackRange.has(`${this.cursorX},${this.cursorY}`))
+        ? t : null;
+    }
+    if (this.gameState === 'converse') {
       const t = this._unitAt(this.cursorX, this.cursorY);
       this.forecastTarget = (t && t.faction === FACTION.ENEMY && !t.isBoss &&
                              this.attackRange.has(`${this.cursorX},${this.cursorY}`))
@@ -373,6 +493,13 @@ class GameMapScene extends Phaser.Scene {
         }
         break;
 
+      case 'converse':
+        if (u && u.faction === FACTION.ENEMY && !u.isBoss &&
+            this.attackRange.has(key)) {
+          this._doConverse(u);
+        }
+        break;
+
       case 'gallop':
         // Confirm on any tile in the gallop range (or stay in place) to reposition
         if (this.moveRange.has(key) && (!u || u === this.selectedUnit)) {
@@ -431,6 +558,10 @@ class GameMapScene extends Phaser.Scene {
         this.forecastTarget = null;
         this._openMenu();
         break;
+      case 'converse':
+        this.forecastTarget = null;
+        this._openMenu();
+        break;
       case 'gallop':
         // Skip remaining gallop movement — end the turn
         this.selectedUnit.moved = true;
@@ -458,12 +589,20 @@ class GameMapScene extends Phaser.Scene {
     // STEAL: Pickpocket only — adjacent enemy must carry at least one item
     const hasSteal   = this.selectedUnit?.className === 'Pickpocket' &&
                        this._getStealableTargets().length > 0;
-    const hasItems   = (this.selectedUnit?.weapons || []).length > 0;
+    // TALK: lord only — adjacent neutral recruitable unit
+    const hasTalk     = this.selectedUnit?.isLord && this._getTalkTarget() !== null;
+    // CONVERSE: lord only — attempt to recruit an adjacent non-boss enemy
+    const hasConverse = this.selectedUnit?.isLord &&
+                        this.units.some(u => u.faction === FACTION.ENEMY && u.alive &&
+                                             !u.isBoss && this.attackRange.has(`${u.gx},${u.gy}`));
+    const hasItems    = (this.selectedUnit?.weapons || []).length > 0;
     this.menuOptions = [
-      ...(hasTarget  ? ['ATTACK']  : []),
-      ...(hasExecute ? ['EXECUTE'] : []),
-      ...(hasSteal   ? ['STEAL']   : []),
-      ...(hasItems   ? ['ITEMS']   : []),
+      ...(hasTarget   ? ['ATTACK']   : []),
+      ...(hasExecute  ? ['EXECUTE']  : []),
+      ...(hasSteal    ? ['STEAL']    : []),
+      ...(hasTalk     ? ['TALK']     : []),
+      ...(hasConverse ? ['CONVERSE'] : []),
+      ...(hasItems    ? ['ITEMS']    : []),
       'WAIT',
     ];
     this.menuCursor = 0;
@@ -491,6 +630,10 @@ class GameMapScene extends Phaser.Scene {
       this._enterExecute();
     } else if (opt === 'STEAL') {
       this._enterStealTarget();
+    } else if (opt === 'TALK') {
+      this._doTalk();
+    } else if (opt === 'CONVERSE') {
+      this._enterConverse();
     } else if (opt === 'ITEMS') {
       this.invCursor = 0;
       this.gameState = 'items';
@@ -512,7 +655,7 @@ class GameMapScene extends Phaser.Scene {
     const atkHits    = atkDoubles ? 2 : 1;
     const atkHit     = Math.min(100, Math.max(0,
       (aw ? aw.hit : 80) + atk.lck - def.sp * 2));
-    const atkCrit    = aw ? aw.crit : 0;
+    const atkCrit    = (aw ? (aw.crit || 0) : 0) + (atk.abilities.includes('hi_crit') ? 20 : 0);
 
     const dist = Math.abs(atk.gx - def.gx) + Math.abs(atk.gy - def.gy);
     const [defMinR, defMaxR] = this._weaponRange(def);
@@ -663,6 +806,60 @@ class GameMapScene extends Phaser.Scene {
       this._computeCamera();
       this.forecastTarget = nearest;
     }
+  }
+
+  // ── Talk (lord recruits adjacent neutral unit) ───────────────────────────────
+  _getTalkTarget() {
+    if (!this.selectedUnit) return null;
+    for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+      const u = this._unitAt(this.selectedUnit.gx + dx, this.selectedUnit.gy + dy);
+      if (u && u.faction === FACTION.NEUTRAL && u.isRecruitable) return u;
+    }
+    return null;
+  }
+
+  _doTalk() {
+    const target = this._getTalkTarget();
+    if (!target) return;
+    target.faction      = FACTION.PLAYER;
+    target.isRecruitable = false;
+    target.moved        = true;   // can't act the turn they join
+    this.battleLog = [`${target.name} joined the party!`];
+    this.logT = 2500;
+    this._finalizeAction(this.selectedUnit);
+  }
+
+  // ── Converse (lord persuades an adjacent enemy to switch sides) ──────────────
+  _enterConverse() {
+    this.gameState      = 'converse';
+    this.forecastTarget = null;
+    let nearest = null, bestD = 9999;
+    for (const u of this.units) {
+      if (u.faction === FACTION.ENEMY && u.alive && !u.isBoss &&
+          this.attackRange.has(`${u.gx},${u.gy}`)) {
+        const d = Math.abs(u.gx - this.selectedUnit.gx) +
+                  Math.abs(u.gy - this.selectedUnit.gy);
+        if (d < bestD) { bestD = d; nearest = u; }
+      }
+    }
+    if (nearest) {
+      this.cursorX = nearest.gx;
+      this.cursorY = nearest.gy;
+      this._computeCamera();
+      this.forecastTarget = nearest;
+    }
+  }
+
+  _doConverse(target) {
+    if (Math.random() < 0.33) {
+      target.faction = FACTION.PLAYER;
+      target.moved   = true;
+      this.battleLog = [`${target.name} joined the party!`];
+    } else {
+      this.battleLog = [`${target.name} wouldn't listen...`];
+    }
+    this.logT = 2500;
+    this._finalizeAction(this.selectedUnit);
   }
 
   // ── Gallop (Stud Master) ──────────────────────────────────────────────────────
@@ -838,12 +1035,22 @@ class GameMapScene extends Phaser.Scene {
     const exalt = attacker.className === 'Astronomer' && Math.random() < 1 / 12;
     const { dmg, doubles } = attacker.calcDamage(defender, tDef, exalt);
 
-    // Apply attacker hits; track count and total damage for Double Hit / Lifesteal
-    let hitCount = 0, totalAtkDmg = 0;
+    // Resolve attacker's weapon here so crit + on-hit effects can both use it
+    const aw = attacker.equippedWeapon;
+
+    // Crit chance: weapon base + Hi-Crit passive bonus
+    const critChance = (aw ? (aw.crit || 0) : 0) +
+                       (attacker.abilities.includes('hi_crit') ? 20 : 0);
+
+    // Apply attacker hits; track count, total damage, and whether a crit fired
+    let hitCount = 0, totalAtkDmg = 0, didCrit = false;
     const applyHit = () => {
       if (!defender.alive) return;
-      defender.hp -= dmg;
-      totalAtkDmg += dmg;
+      const isCrit = critChance > 0 && Math.random() * 100 < critChance;
+      const hitDmg = isCrit ? dmg * 3 : dmg;
+      if (isCrit) didCrit = true;
+      defender.hp -= hitDmg;
+      totalAtkDmg += hitDmg;
       hitCount++;
     };
 
@@ -863,11 +1070,11 @@ class GameMapScene extends Phaser.Scene {
 
     let logLine = `${attacker.name} → ${defender.name}: ${dmg} dmg`;
     if (exalt)         logLine += ' [EXALT]';
+    if (didCrit)       logLine += ' [CRIT]';
     if (hitCount > 1)  logLine += ` ×${hitCount}`;
     if (lifeHeal > 0)  logLine += ` [+${lifeHeal}HP]`;
 
     // On-hit weapon effects (burn / poison)
-    const aw = attacker.equippedWeapon;
     if (aw && aw.effect) {
       const fx = aw.effect;
       if (fx.type === 'burn' && !defender.hasStatus('burn') && Math.random() * 100 < fx.chance) {
@@ -963,6 +1170,21 @@ class GameMapScene extends Phaser.Scene {
             equippedIdx: lord.weapons.indexOf(lord.equippedWeapon),
           };
         }
+        // Save surviving allies (dead ones are simply omitted so they don't respawn)
+        this.saveData.allies = this.units
+          .filter(u => u.faction === FACTION.PLAYER && !u.isLord)
+          .map(u => ({
+            name: u.name, className: u.className,
+            color: u.color, symbol: u.symbol || '♟',
+            level: u.level, xp: u.xp || 0,
+            maxHp: u.maxHp, hp: u.hp,
+            pow: u.pow, mag: u.mag, sp: u.sp, lck: u.lck,
+            def: u.def, mdef: u.mdef, move: u.move,
+            growths: { ...u.growths },
+            weapons: u.weapons.map(w => ({ ...w })),
+            equippedIdx: u.weapons.indexOf(u.equippedWeapon),
+            abilities: [...(u.abilities || [])],
+          }));
         this.saveData.currentLevel++;
         this.saveData.mapSeed = Math.floor(Math.random() * 2_000_000_000);
         SaveData.save(this.slotIndex, this.saveData);
@@ -1107,8 +1329,10 @@ class GameMapScene extends Phaser.Scene {
     ];
     this._fcTexts.forEach(t => t.setVisible(false));
 
-    // Action menu (up to 5 options: ATTACK, EXECUTE, STEAL, ITEMS, WAIT)
+    // Action menu (up to 7 options: ATTACK, EXECUTE, STEAL, TALK, CONVERSE, ITEMS, WAIT)
     this.txtMenuItems = [
+      this.add.text(0, 0, '', s(22, C.TEXT)).setDepth(6),
+      this.add.text(0, 0, '', s(22, C.TEXT)).setDepth(6),
       this.add.text(0, 0, '', s(22, C.TEXT)).setDepth(6),
       this.add.text(0, 0, '', s(22, C.TEXT)).setDepth(6),
       this.add.text(0, 0, '', s(22, C.TEXT)).setDepth(6),
@@ -1259,8 +1483,9 @@ class GameMapScene extends Phaser.Scene {
       g.fillStyle(bodyCol, 1);
       g.fillRect(sx + 4, sy + 4, TILE_S - 8, TILE_S - 20);
 
-      // Border
-      const bdCol = u.faction === FACTION.PLAYER ? 0xffffff : 0x000000;
+      // Border — white for allies, gold for neutrals, black for enemies
+      const bdCol = u.faction === FACTION.PLAYER  ? 0xffffff :
+                    u.faction === FACTION.NEUTRAL  ? 0xf0d060 : 0x000000;
       g.lineStyle(3, bdCol, 0.8);
       g.strokeRect(sx + 4, sy + 4, TILE_S - 8, TILE_S - 20);
 
@@ -1631,6 +1856,8 @@ class GameMapScene extends Phaser.Scene {
         ? (this.forecastTarget ? 'X:attack  Z:back' : 'aim at enemy  Z:back')
         : this.gameState === 'execute'
         ? (this.forecastTarget ? 'X:execute  Z:back' : 'aim at enemy  Z:back')
+        : this.gameState === 'converse'
+        ? (this.forecastTarget ? 'X:attempt converse  Z:back' : 'aim at enemy  Z:back')
         : this.gameState === 'gallop'
         ? 'Gallop — move remaining tiles  Z:skip'
         : this.gameState === 'steal-target'

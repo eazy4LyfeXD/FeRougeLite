@@ -174,7 +174,8 @@ class StatusScene extends Phaser.Scene {
     g.fillStyle(portColor, 1);
     g.fillRect(px, py, pw, ph);
 
-    const stripeColor = u.faction === FACTION.PLAYER ? 0x3a5fa0 : 0xa03a3a;
+    const stripeColor = u.faction === FACTION.PLAYER  ? 0x3a5fa0 :
+                        u.faction === FACTION.NEUTRAL  ? 0xb08020 : 0xa03a3a;
     g.fillStyle(stripeColor, 1);
     g.fillRect(px, py, pw, 20);
 
@@ -240,7 +241,10 @@ class StatusScene extends Phaser.Scene {
     this.txtMag.setColor( isMagic ? C.SUBTITLE : C.TEXT);
     this.txtMDef.setColor(isMagic ? C.SUBTITLE : C.TEXT);
 
-    this.txtFaction.setText(u.faction === FACTION.PLAYER ? 'ALLY' : 'ENEMY');
+    this.txtFaction.setText(
+      u.faction === FACTION.PLAYER  ? 'ALLY'  :
+      u.faction === FACTION.NEUTRAL ? 'TALK?' : 'ENEMY'
+    );
   }
 
   // ── Fill item list rows ────────────────────────────────────────────────────

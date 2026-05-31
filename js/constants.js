@@ -87,6 +87,11 @@ const CLASSES = {
     moveCosts: CLASS_MOVE_COSTS.NORMAL, mounted: false, flying: false,
     abilities: ['divine_ward', 'mend'],
   },
+  VAGABOND: {
+    name: 'Vagabond', weapons: ['sword'],
+    moveCosts: CLASS_MOVE_COSTS.NORMAL, mounted: false, flying: false,
+    abilities: ['hi_crit'],
+  },
   GRUNT: {
     name: 'Grunt', weapons: ['lance'],
     moveCosts: CLASS_MOVE_COSTS.NORMAL, mounted: false, flying: false,
@@ -130,7 +135,7 @@ const TILE_S = 56;   // pixels per tile (14 × 4 — game now renders at native 
 const UI_H   = 120;  // bottom HUD height (30 × 4)
 
 // Factions
-const FACTION = { PLAYER: 0, ENEMY: 1 };
+const FACTION = { PLAYER: 0, ENEMY: 1, NEUTRAL: 2 };
 
 // Phases
 const PHASE = {

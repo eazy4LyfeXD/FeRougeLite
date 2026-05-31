@@ -335,6 +335,32 @@ Each of the three lords belongs to a **unique class**. Classes are permanent —
 
 ---
 
+### Vagabond
+*Inspired by the Swordmaster / Myrmidon archetype — a wandering blade for hire, fast and lethal.*
+
+**Weapons:** Sword only  **Movement:** Standard foot unit
+
+| Ability | Description |
+|---|---|
+| **Hi-Crit** | Passive. Adds **+20% crit rate** on top of the weapon's base crit. Critical hits deal **3× damage**. Each hit rolls independently. |
+
+**As enemy:** Spawns in the regular enemy pool alongside Grunts, Fletchers, and Necromancers. Stats scale with floor.
+
+**As neutral recruit (33% chance per floor):** A neutral Vagabond named **Guy** appears on the map with a gold border. Only the lord can **TALK** to them when adjacent. Recruits immediately upon talking; stats scale with the floor they're found on. Subject to permadeath like all allies.
+
+#### Converse
+
+The lord may also attempt to **CONVERSE** with any adjacent non-boss **enemy** unit. This represents persuading a foe mid-battle to switch sides.
+
+| Result | Probability | Outcome |
+|---|---|---|
+| Success | 33% | Enemy switches to player faction (`moved = true` for this turn). Saved as an ally if the floor is cleared. |
+| Failure | 67% | Enemy refuses. The lord's action is still spent. |
+
+CONVERSE appears in the lord's action menu whenever at least one non-boss enemy is within attack range. The cursor targets the enemy the same way EXECUTE does. Unlike TALK (which is guaranteed), CONVERSE is a gamble — high reward, reasonable risk.
+
+---
+
 ### Grunt
 *Inspired by the Soldier / Halberdier archetype — a dependable spear-wielding foot soldier with no frills.*
 
@@ -535,7 +561,8 @@ Hit:##%  x#       ║ No counter
 - Defender counter-attacks if alive and adjacent (distance = 1). Counters never double.
 - Speed doubling: attacker hits twice if `SP ≥ foe SP + 4`.
 - Tile defense bonuses (physical only): Plain 0, Forest 1, Mountain 2, Fort 2, Village 1, Throne 3.
-- **Win condition:** Defeat the boss (General) on the Throne tile. Remaining regular enemies do not need to be cleared.
+- **Win condition:** Defeat the boss on the Throne tile. Remaining regular enemies do not need to be cleared.
+- **Boss type:** Randomly chosen each floor from: **General** (Bulwark), **Blade Master** (Vagabond, has Hi-Crit), **Archmage** (Necromancer), **Warlord** (Fletcher). Each has class-appropriate high stats scaled faster than regular enemies.
 - **Lose condition:** Lord unit is killed.
 
 ### Combat animations
@@ -900,6 +927,31 @@ These abilities are implemented as mechanics and can be assigned to any unit's `
 | **Double Hit** | Each time the unit attacks, each speed-based hit (1 or 2) independently rolls a **30% chance** to strike an additional time. Maximum 4 hits if already speed-doubling. |
 | **Lifesteal** | The unit heals for **1/8** of the total damage they inflict during their attack action (all hits, before the counter-attack). Shown as `[+XHP]` in the battle log. |
 | **Reach** | Increases the maximum range of **bow** attacks by **+2 tiles** (bows normally reach [2,2]; with Reach they reach [2,4]). Also extends the range at which a bow-wielder can counter-attack. |
+
+### Ally Recruitment
+
+After clearing **floor 1 only**, two additional reward options may appear in the floor reward pool alongside the standard upgrades. Because 3 of N options are shown at random, there is no guarantee both — or either — will appear.
+
+| Reward | Effect |
+|---|---|
+| **Recruit: Rookie** | A randomly chosen low-level unit joins: **Grunt** or **Clergy**. High growth rates, low base stats. Level 1. |
+| **Recruit: Veteran** | A randomly chosen high-level unit joins: **Bulwark** or **Fletcher**. High base stats, low growth rates. Level 7. |
+
+#### Ally unit profiles
+
+| Unit | Class | Weapons | Move | Notes |
+|---|---|---|---|---|
+| **Grunt** | Grunt | Wood Lance, Healing Potion | 4 | High Def/Pow growths; reliable frontliner. |
+| **Clergy** | Clergy | Wood Tome, Heal (staff), Healing Potion | 5 | Exceptional Magic/MDef growths; healer + attacker. |
+| **Bulwark** | Bulwark | Bronze Lance, Healing Potion | 4 | Extremely high Def; tanky anchor unit. |
+| **Fletcher** | Fletcher | Bronze Sword, Bronze Bow, Healing Potion | 6 | High Speed; cavalry movement costs apply. |
+
+#### Persistence and death
+
+- Recruited allies carry their stats, level, XP, and weapons between floors exactly like the lord.
+- Allies receive the same **50 % HP restoration** at the start of each new floor.
+- If an ally is killed (HP reaches 0), they are permanently lost for the rest of the run — they are **not** saved when the floor is cleared.
+- **Only the lord's death ends the run.** Losing all allies is painful but not fatal.
 
 ### [TBD] Future progression features
 
