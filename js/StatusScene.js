@@ -77,7 +77,7 @@ class StatusScene extends Phaser.Scene {
     this.txtSP      = this.add.text(sx, sy + 210, '', f(20, C.TEXT)).setDepth(3);
     this.txtDef     = this.add.text(sx, sy + 252, '', f(20, C.TEXT)).setDepth(3);
     this.txtMove    = this.add.text(sx, sy + 294, '', f(20, C.TEXT)).setDepth(3);
-    this.txtMoj     = this.add.text(rx, sy + 168, '', f(20, C.TEXT)).setDepth(3);
+    this.txtMag     = this.add.text(rx, sy + 168, '', f(20, C.TEXT)).setDepth(3);
     this.txtLck     = this.add.text(rx, sy + 210, '', f(20, C.TEXT)).setDepth(3);
     this.txtMDef    = this.add.text(rx, sy + 252, '', f(20, C.TEXT)).setDepth(3);
 
@@ -110,7 +110,7 @@ class StatusScene extends Phaser.Scene {
     this._statsGroup = [
       this.txtName, this.txtClass, this.txtLevel,
       this.txtHP, this.txtPow, this.txtSP, this.txtDef, this.txtMove,
-      this.txtMoj, this.txtLck, this.txtMDef, this.txtFaction,
+      this.txtMag, this.txtLck, this.txtMDef, this.txtFaction,
       this.txtItemsHdr,
     ];
     this._itemGroup = [
@@ -229,15 +229,15 @@ class StatusScene extends Phaser.Scene {
     this.txtSP.setText(  `SP  ${u.sp}`);
     this.txtDef.setText( `Df  ${u.def}`);
     this.txtMove.setText(`Mv  ${u.move}`);
-    this.txtMoj.setText( `Mj  ${u.moj}`);
+    this.txtMag.setText( `Mag ${u.mag}`);
     this.txtLck.setText( `Lk  ${u.lck}`);
     this.txtMDef.setText(`MD  ${u.mdef}`);
 
     const w = u.equippedWeapon;
-    const isMagic = w ? !!w.isMagic : u.moj > u.pow;
+    const isMagic = w ? !!w.isMagic : u.mag > u.pow;
     this.txtPow.setColor( isMagic ? C.TEXT     : C.SUBTITLE);
     this.txtDef.setColor( isMagic ? C.TEXT     : C.SUBTITLE);
-    this.txtMoj.setColor( isMagic ? C.SUBTITLE : C.TEXT);
+    this.txtMag.setColor( isMagic ? C.SUBTITLE : C.TEXT);
     this.txtMDef.setColor(isMagic ? C.SUBTITLE : C.TEXT);
 
     this.txtFaction.setText(u.faction === FACTION.PLAYER ? 'ALLY' : 'ENEMY');

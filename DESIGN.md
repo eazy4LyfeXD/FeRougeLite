@@ -77,16 +77,16 @@ Every unit (lord and enemy alike) has the following stats:
 |---|---|---|
 | Health Points | HP | Current / max hit points. Reaches 0 = dead. |
 | Power | Pow | Physical attack strength. |
-| Mojo | Moj | Magic attack strength (like FE's Magic stat). |
+| Magic | Mag | Magic attack strength (like FE's Magic stat). |
 | Speed | SP | Determines move order; doubles attack if SP ≥ foe SP + 4. |
 | Luck | Lck | Improves hit rate and reduces enemy crit chance. **[TBD formula]** |
 | Defense | Def | Reduces physical damage taken. |
-| Mojo Defense | MDef | Reduces magic (Mojo) damage taken. |
+| Magic Defense | MDef | Reduces magic (Magic) damage taken. |
 | Movement | Move | Tiles a unit can travel per turn. Does **not** grow on level-up. |
 
 ### Attack type selection
 A unit automatically uses whichever attack is stronger:
-- If `Moj > Pow`: **magic attack** — damage = `max(1, Moj − defender.MDef)`. Ignores terrain defense.
+- If `Mag > Pow`: **magic attack** — damage = `max(1, Mag − defender.MDef)`. Ignores terrain defense.
 - Otherwise: **physical attack** — damage = `max(1, Pow − (defender.Def + TILE_DEF))`.
 
 ### Speed doubling
@@ -145,7 +145,7 @@ When a lord levels up, the game pauses and launches the **LevelUpScene** overlay
 | **Theme** | Swift blade | Magic specialist | Physical tank |
 | HP | 20 **(80%)** | 17 **(65%)** | 22 **(90%)** |
 | Pow | 8 **(70%)** | 3 **(10%)** | 10 **(75%)** |
-| Moj | 2 **(10%)** | 11 **(90%)** | 1 **(5%)** |
+| Mag | 2 **(10%)** | 11 **(90%)** | 1 **(5%)** |
 | SP | 7 **(75%)** | 7 **(65%)** | 6 **(50%)** |
 | Lck | 5 **(55%)** | 6 **(60%)** | 4 **(40%)** |
 | Def | 5 **(55%)** | 3 **(15%)** | 8 **(75%)** |
@@ -268,7 +268,7 @@ Each of the three lords belongs to a **unique class**. Classes are permanent —
 - High Move (7) means the Stud Master covers ground fast on open terrain and roads — great for chasing down enemies or rushing the Throne.
 - Terrain costs punish going through forests and mountains, which creates a meaningful path-planning decision.
 - Well-rounded physical stats (high Pow and Def) mean they can fight head-on unlike the Pickpocket or Astronomer.
-- Zero Mojo — cannot attack magic-resistant enemies with Mojo; relies entirely on Pow vs Def.
+- Zero Magic — cannot attack magic-resistant enemies with Magic; relies entirely on Pow vs Def.
 
 ---
 
@@ -360,7 +360,7 @@ Each of the three lords belongs to a **unique class**. Classes are permanent —
 | **Fortress** | **[TBD]** Passive: physical damage taken is reduced by a flat amount (bonus Def on top of stat). |
 | **Immovable** | **[TBD]** Cannot be killed in one hit — always survives with at least 1 HP once per map. |
 
-**Design notes:** The Bulwark is the anchor of any formation. Extremely high Def and HP, very low Speed (almost never doubles or gets doubled meaningfully). Their weakness is magic — high MDef is not their strength, so Mojo users are their natural counter.
+**Design notes:** The Bulwark is the anchor of any formation. Extremely high Def and HP, very low Speed (almost never doubles or gets doubled meaningfully). Their weakness is magic — high MDef is not their strength, so Magic users are their natural counter.
 
 ---
 
@@ -446,7 +446,7 @@ Each of the three lords belongs to a **unique class**. Classes are permanent —
 
 ### Enemy base stats
 
-| Type | HP | Pow | Moj | SP | Lck | Def | MDef | Move |
+| Type | HP | Pow | Mag | SP | Lck | Def | MDef | Move |
 |---|---|---|---|---|---|---|---|---|
 | Knight | 14 | 7 | 0 | 4 | 2 | 4 | 2 | 3 |
 | Archer | 12 | 8 | 0 | 6 | 3 | 2 | 1 | 4 |
@@ -531,7 +531,7 @@ Hit:##%  x#       ║ No counter
 > Hit% is shown as a preview; all attacks currently always connect (miss system is TBD).
 
 ### Combat resolution
-- Attack type (physical vs magic) determined by equipped weapon (`isMagic` flag); falls back to `Moj > Pow` for weaponless units.
+- Attack type (physical vs magic) determined by equipped weapon (`isMagic` flag); falls back to `Mag > Pow` for weaponless units.
 - Defender counter-attacks if alive and adjacent (distance = 1). Counters never double.
 - Speed doubling: attacker hits twice if `SP ≥ foe SP + 4`.
 - Tile defense bonuses (physical only): Plain 0, Forest 1, Mountain 2, Fort 2, Village 1, Throne 3.
@@ -572,7 +572,7 @@ When the game is more fleshed out, a dedicated `CombatScene.js` will be added th
 │ ┌──────────┐  NAME          Lv. ##  │
 │ │          │  ─────────────────────  │
 │ │ PORTRAIT │  HP   ##/##            │
-│ │          │  Pow  ##   Moj  ##     │
+│ │          │  Pow  ##   Mag  ##     │
 │ │  symbol  │  SP   ##   Lck  ##     │
 │ │          │  Def  ##   MDef ##     │
 │ │ [faction]│  Move ##               │
@@ -587,8 +587,8 @@ When the game is more fleshed out, a dedicated `CombatScene.js` will be added th
 
 - **Portrait:** drawn using unit color + symbol glyph. Lords use real portrait images.
 - **Faction indicator:** blue stripe (Player) or red stripe (Enemy) at top of portrait.
-- Stats shown: HP (current/max), Pow, Moj, SP, Lck, Def, MDef, Move, Level.
-- The dominant offensive stat (Pow or Moj based on equipped weapon) is highlighted.
+- Stats shown: HP (current/max), Pow, Mag, SP, Lck, Def, MDef, Move, Level.
+- The dominant offensive stat (Pow or Mag based on equipped weapon) is highlighted.
 - Enemy stats are fully visible — intentional for strategic planning.
 
 #### Item list (bottom of stats view)
@@ -629,7 +629,7 @@ Pressing **E** on a highlighted item replaces the panel with the item's full dat
 └──────────────────────────────────────┘
 ```
 
-- **Mgt** — Might (added to Pow/Moj before damage calculation).
+- **Mgt** — Might (added to Pow/Mag before damage calculation).
 - **Hit** — Hit rate (tracked; miss system not yet active).
 - **Crt** — Crit chance (tracked; crit system not yet active).
 - **Uses/MaxUses** — remaining uses out of original total.
@@ -649,13 +649,13 @@ Pressing **E** on a highlighted item replaces the panel with the item's full dat
 
 ### Overview
 
-Every combat-capable unit equips a **weapon** that adds its **Might** to the attacker's offensive stat (Pow for physical, Moj for magic) before the damage formula runs. Units without weapons still attack using base stats only.
+Every combat-capable unit equips a **weapon** that adds its **Might** to the attacker's offensive stat (Pow for physical, Mag for magic) before the damage formula runs. Units without weapons still attack using base stats only.
 
 Damage formula (unchanged structure):
 - **Physical:** `max(1, (Pow + Might) − (Def + TILE_DEF))`
-- **Magic:** `max(1, (Moj + Might) − MDef)` *(ignores terrain)*
+- **Magic:** `max(1, (Mag + Might) − MDef)` *(ignores terrain)*
 
-The equipped weapon's type (`isMagic: true` on tomes/dark magic) now determines whether a unit attacks physically or magically, overriding the old `Moj > Pow` auto-select. Weaponless enemies still use stat comparison as before.
+The equipped weapon's type (`isMagic: true` on tomes/dark magic) now determines whether a unit attacks physically or magically, overriding the old `Mag > Pow` auto-select. Weaponless enemies still use stat comparison as before.
 
 Each weapon has a **uses** counter. One use is consumed per combat engagement (attacker and counter-attacker each consume one use). When a weapon reaches 0 uses it is removed from the unit's inventory; the next non-staff weapon auto-equips.
 
@@ -753,7 +753,7 @@ The Astronomer begins with **four** weapons. Only the first non-staff weapon (Fl
 | Hit | 70 |
 | Crit | 0 |
 | Uses | 3 |
-| **Special** | Devastatingly high Might — designed to one-shot any enemy (including the boss) during the first three maps at base Moj 11. The 3-use limit makes it a decisive weapon to save for the right moment. |
+| **Special** | Devastatingly high Might — designed to one-shot any enemy (including the boss) during the first three maps at base Mag 11. The 3-use limit makes it a decisive weapon to save for the right moment. |
 
 ##### Drought *(Wicked/Dark Magic)*
 
@@ -764,7 +764,7 @@ The Astronomer begins with **four** weapons. Only the first non-staff weapon (Fl
 | Hit | 85 |
 | Crit | 0 |
 | Uses | 25 |
-| **On-hit** | **100% chance to inflict Poison** — deals 2 HP per turn DoT, and halves the target's Moj (magic offense) and Def (physical defense) for the rest of the map |
+| **On-hit** | **100% chance to inflict Poison** — deals 2 HP per turn DoT, and halves the target's Mag (magic offense) and Def (physical defense) for the rest of the map |
 
 ---
 
@@ -801,7 +801,7 @@ Status effects are applied by certain weapons on hit and persist for the remaind
 | Status | Source | Effect on afflicted unit |
 |---|---|---|
 | **Burn** | Flame (40% chance on hit) | Physical power halved (Pow × ½) when calculating damage dealt |
-| **Poison** | Drought (100% chance on hit) | Magic power halved (Moj × ½) when attacking; physical defense halved (Def × ½) when defending; **+2 HP damage per turn** at the start of each phase |
+| **Poison** | Drought (100% chance on hit) | Magic power halved (Mag × ½) when attacking; physical defense halved (Def × ½) when defending; **+2 HP damage per turn** at the start of each phase |
 
 Poison DoT is applied to all living units of a faction at the moment their phase begins. Poison can reduce a unit to 0 HP (it can kill). Burn cannot kill on its own.
 
@@ -864,7 +864,7 @@ All enemies on floor N have their base stats boosted proportionally:
 | Stat | Per-floor increase |
 |---|---|
 | HP | +3 per floor |
-| Pow / Moj | +1 per floor |
+| Pow / Mag | +1 per floor |
 | SP | +0.5 per floor (rounded) |
 | Def / MDef | +1 / +0.5 per floor |
 | Boss HP | +8 per floor |
@@ -876,7 +876,7 @@ Example — floor 5 (fMod = 4) compared to floor 1:
 |---|---|---|---|
 | Grunt | 14 → **26** | 7 → **11** | 4 → **8** |
 | Fletcher | 12 → **24** | 8 → **12** | 2 → **6** |
-| Necromancer | 10 → **22** | Moj 10 → **14** | 1 → **5** |
+| Necromancer | 10 → **22** | Mag 10 → **14** | 1 → **5** |
 | General (boss) | 30 → **62** | 12 → **20** | 7 → **15** |
 
 ### XP scaling across floors
@@ -895,7 +895,7 @@ These abilities are implemented as mechanics and can be assigned to any unit's `
 
 | Ability | Effect |
 |---|---|
-| **Enrage** | While below 50% HP, the unit's offensive stat (Pow or Moj) and effective Speed are **doubled** for damage and speed-doubling calculations. |
+| **Enrage** | While below 50% HP, the unit's offensive stat (Pow or Mag) and effective Speed are **doubled** for damage and speed-doubling calculations. |
 | **Cleanse** | When the unit uses a healing staff, all status effects (Burn, Poison, etc.) are removed from the healed target in addition to restoring HP. |
 | **Double Hit** | Each time the unit attacks, each speed-based hit (1 or 2) independently rolls a **30% chance** to strike an additional time. Maximum 4 hits if already speed-doubling. |
 | **Lifesteal** | The unit heals for **1/8** of the total damage they inflict during their attack action (all hits, before the counter-attack). Shown as `[+XHP]` in the battle log. |

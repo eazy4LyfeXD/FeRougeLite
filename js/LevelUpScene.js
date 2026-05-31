@@ -17,8 +17,8 @@ class LevelUpScene extends Phaser.Scene {
   static SX = 336; static SY = 32;
 
   // ── Stat definitions ──────────────────────────────────────────────────────
-  static STAT_KEYS   = ['hp', 'pow', 'moj', 'sp', 'lck', 'def', 'mdef'];
-  static STAT_LABELS = ['HP   ', 'Pow  ', 'Moj  ', 'SP   ', 'Lck  ', 'Def  ', 'MDef '];
+  static STAT_KEYS   = ['hp', 'pow', 'mag', 'sp', 'lck', 'def', 'mdef'];
+  static STAT_LABELS = ['HP   ', 'Pow  ', 'Mag  ', 'SP   ', 'Lck  ', 'Def  ', 'MDef '];
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
   create() {
@@ -129,7 +129,7 @@ class LevelUpScene extends Phaser.Scene {
 
     // Use maxHp for the HP row so it shows the new maximum, not current HP
     const vals = {
-      hp: u.maxHp, pow: u.pow, moj: u.moj,
+      hp: u.maxHp, pow: u.pow, mag: u.mag,
       sp: u.sp, lck: u.lck, def: u.def, mdef: u.mdef,
     };
 

@@ -58,7 +58,7 @@ class FloorRewardScene extends Phaser.Scene {
 
     if (ps) {
       lord.maxHp = ps.maxHp;  lord.hp   = ps.hp;
-      lord.pow   = ps.pow;    lord.moj  = ps.moj;
+      lord.pow   = ps.pow;    lord.mag  = ps.mag;
       lord.sp    = ps.sp;     lord.lck  = ps.lck;
       lord.def   = ps.def;    lord.mdef = ps.mdef;
       lord.level = ps.level;  lord.xp   = ps.xp || 0;
@@ -199,7 +199,7 @@ class FloorRewardScene extends Phaser.Scene {
     const lord = this.lordUnit;
     this.saveData.playerStats = {
       maxHp: lord.maxHp, hp:    lord.hp,
-      pow:   lord.pow,   moj:   lord.moj,
+      pow:   lord.pow,   mag:   lord.mag,
       sp:    lord.sp,    lck:   lord.lck,
       def:   lord.def,   mdef:  lord.mdef,
       level: lord.level, xp:    lord.xp || 0,

@@ -3,7 +3,7 @@
 class Unit {
   constructor({
     name, faction, gx, gy,
-    hp, pow = 0, moj = 0, sp = 0, lck = 0, def = 0, mdef = 0, move,
+    hp, pow = 0, mag = 0, sp = 0, lck = 0, def = 0, mdef = 0, move,
     color, symbol,
     level = 1, growths = null, moveCosts = null,
     className = '', isLord = false, isBoss = false,
@@ -17,7 +17,7 @@ class Unit {
     this.maxHp = hp;
     this.hp    = hp;
     this.pow   = pow;
-    this.moj   = moj;
+    this.mag   = mag;
     this.sp    = sp;
     this.lck   = lck;
     this.def   = def;
@@ -25,7 +25,7 @@ class Unit {
     this.move  = move;
 
     this.level     = level;
-    this.growths   = growths   || { hp: 0, pow: 0, moj: 0, sp: 0, lck: 0, def: 0, mdef: 0 };
+    this.growths   = growths   || { hp: 0, pow: 0, mag: 0, sp: 0, lck: 0, def: 0, mdef: 0 };
     this.moveCosts = moveCosts || MOVE_COST;
 
     this.color     = color;
@@ -61,7 +61,7 @@ class Unit {
   levelUp() {
     this.level++;
     const gained = {};
-    for (const stat of ['hp', 'pow', 'moj', 'sp', 'lck', 'def', 'mdef']) {
+    for (const stat of ['hp', 'pow', 'mag', 'sp', 'lck', 'def', 'mdef']) {
       if (Math.random() * 100 < (this.growths[stat] || 0)) {
         this[stat]++;
         if (stat === 'hp') this.maxHp++;
@@ -101,10 +101,10 @@ class Unit {
   // Returns { dmg, isMagic, doubles }.
   calcDamage(defender, tileDef = 0, ignoreDefense = false) {
     const w       = this.equippedWeapon;
-    const isMagic = w ? !!w.isMagic : this.moj > this.pow;
+    const isMagic = w ? !!w.isMagic : this.mag > this.pow;
 
     // Offensive stat — halved by relevant status debuff
-    let atkStat = isMagic ? this.moj : this.pow;
+    let atkStat = isMagic ? this.mag : this.pow;
     if ( isMagic && this.hasStatus('poison')) atkStat = Math.floor(atkStat / 2);
     if (!isMagic && this.hasStatus('burn'))   atkStat = Math.floor(atkStat / 2);
 

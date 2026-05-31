@@ -132,7 +132,7 @@ class GameMapScene extends Phaser.Scene {
     const ps   = this.saveData.playerStats;
     if (ps) {
       lord.maxHp = ps.maxHp;  lord.hp   = ps.hp;
-      lord.pow   = ps.pow;    lord.moj  = ps.moj;
+      lord.pow   = ps.pow;    lord.mag  = ps.mag;
       lord.sp    = ps.sp;     lord.lck  = ps.lck;
       lord.def   = ps.def;    lord.mdef = ps.mdef;
       lord.level = ps.level;  lord.xp   = ps.xp || 0;
@@ -164,7 +164,7 @@ class GameMapScene extends Phaser.Scene {
       {
         name: 'Grunt',       className: 'Grunt',
         color: 0xc04040, symbol: '♟',
-        hp: sc(14,3), pow: sc(7,1),  moj: 0,       sp: sc(4,0.5),
+        hp: sc(14,3), pow: sc(7,1),  mag: 0,       sp: sc(4,0.5),
         lck: 2,        def: sc(4,1), mdef: sc(2,0.5), move: 4,
         moveCosts: CLASSES.GRUNT.moveCosts,
         weapons: [makeWeapon(`${tier}_LANCE`)],
@@ -172,7 +172,7 @@ class GameMapScene extends Phaser.Scene {
       {
         name: 'Fletcher',    className: 'Fletcher',
         color: 0xc07030, symbol: '♝',
-        hp: sc(12,3), pow: sc(8,1),  moj: 0,       sp: sc(6,0.5),
+        hp: sc(12,3), pow: sc(8,1),  mag: 0,       sp: sc(6,0.5),
         lck: 3,        def: sc(2,1), mdef: sc(1,0.5), move: 6,
         moveCosts: CLASSES.FLETCHER.moveCosts,
         weapons: [makeWeapon(`${tier}_SWORD`)],
@@ -180,7 +180,7 @@ class GameMapScene extends Phaser.Scene {
       {
         name: 'Necromancer', className: 'Necromancer',
         color: 0x9030c0, symbol: '♜',
-        hp: sc(10,3), pow: 2,        moj: sc(10,1), sp: sc(5,0.5),
+        hp: sc(10,3), pow: 2,        mag: sc(10,1), sp: sc(5,0.5),
         lck: 4,        def: sc(1,1), mdef: sc(5,0.5), move: 5,
         moveCosts: CLASSES.NECROMANCER.moveCosts,
         weapons: [makeWeapon(`${tier}_TOME`)],
@@ -205,7 +205,7 @@ class GameMapScene extends Phaser.Scene {
       this.units.push(new Unit({
         name: 'General', className: 'Bulwark', faction: FACTION.ENEMY,
         gx: this.thronePos.x, gy: this.thronePos.y,
-        hp:   sc(30, 8), pow: sc(12, 2), moj: 3,
+        hp:   sc(30, 8), pow: sc(12, 2), mag: 3,
         sp:   sc(4, 0.5), lck: 5,
         def:  sc(7, 2),  mdef: sc(4, 0.5), move: 3,
         color: 0xe030e0, symbol: '♚', isBoss: true,
@@ -302,7 +302,8 @@ class GameMapScene extends Phaser.Scene {
         if (u && u.faction === FACTION.PLAYER && !u.moved) {
           this.selectedUnit = u;
           this.moveRange    = u.computeMoveRange(this.grid, this.units);
-          this.attackRange  = u.computeAttackRange(this.moveRange);
+          const [minR, maxR] = this._weaponRange(u);
+          this.attackRange  = u.computeAttackRange(this.moveRange, minR, maxR);
           this.gameState    = 'selected';
         }
         break;
@@ -582,7 +583,7 @@ class GameMapScene extends Phaser.Scene {
 
   // Total attack power a unit deals with a specific weapon
   _weaponAtk(unit, w) {
-    return (w.isMagic ? unit.moj : unit.pow) + (w.might || 0);
+    return (w.isMagic ? unit.mag : unit.pow) + (w.might || 0);
   }
 
   // Enter execute targeting — cursor snaps to nearest non-boss enemy
@@ -954,7 +955,7 @@ class GameMapScene extends Phaser.Scene {
         if (lord) {
           this.saveData.playerStats = {
             maxHp: lord.maxHp, hp:    lord.hp,
-            pow:   lord.pow,   moj:   lord.moj,
+            pow:   lord.pow,   mag:   lord.mag,
             sp:    lord.sp,    lck:   lord.lck,
             def:   lord.def,   mdef:  lord.mdef,
             level: lord.level, xp:    lord.xp || 0,
@@ -1013,6 +1014,8 @@ class GameMapScene extends Phaser.Scene {
   }
 
   _enemyAct(eu) {
+    const [euMinR, euMaxR] = this._weaponRange(eu);
+
     // Find nearest player unit
     let target = null, bestDist = 9999;
     for (const u of this.units) {
@@ -1023,26 +1026,31 @@ class GameMapScene extends Phaser.Scene {
     }
     if (!target) return;
 
-    // Attack if adjacent
-    if (bestDist === 1) { this._doAttack(eu, target); return; }
+    // Attack if already within weapon range
+    if (bestDist >= euMinR && bestDist <= euMaxR) {
+      this._doAttack(eu, target);
+      return;
+    }
 
-    // Move toward target (greedy step)
+    // Move to close in on (or, for ranged units, back off to) ideal attack distance.
+    // We minimise |dist - euMinR| so a bow enemy seeks distance 2, not distance 1.
     let bestPos = { x: eu.gx, y: eu.gy };
-    let bestD   = bestDist;
+    let bestD   = Math.abs(bestDist - euMinR);
     for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
       const nx = eu.gx + dx, ny = eu.gy + dy;
       if (nx < 0 || nx >= MAP_W || ny < 0 || ny >= MAP_H) continue;
       if (MOVE_COST[this.grid[ny][nx]] >= 99) continue;
       if (this._unitAt(nx, ny)) continue;
       const d = Math.abs(nx - target.gx) + Math.abs(ny - target.gy);
-      if (d < bestD) { bestD = d; bestPos = { x: nx, y: ny }; }
+      const gap = Math.abs(d - euMinR);
+      if (gap < bestD) { bestD = gap; bestPos = { x: nx, y: ny }; }
     }
     eu.gx = bestPos.x;
     eu.gy = bestPos.y;
 
-    // Attack after move if now adjacent
+    // Attack if now within range after the move
     const newDist = Math.abs(eu.gx - target.gx) + Math.abs(eu.gy - target.gy);
-    if (newDist === 1) this._doAttack(eu, target);
+    if (newDist >= euMinR && newDist <= euMaxR) this._doAttack(eu, target);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1468,11 +1476,11 @@ class GameMapScene extends Phaser.Scene {
     // Unit info
     const u = this._unitAt(this.cursorX, this.cursorY);
     if (u) {
-      const isMagic = u.moj > u.pow;
+      const isMagic = u.mag > u.pow;
       this.txtUnitName.setText(`${u.name}  Lv.${u.level}`);
       this.txtUnitInfo.setText(
         `HP ${u.hp}/${u.maxHp}  ` +
-        (isMagic ? `Mj${u.moj}  MD${u.mdef}` : `Pw${u.pow}  Df${u.def}`)
+        (isMagic ? `Mg${u.mag}  MD${u.mdef}` : `Pw${u.pow}  Df${u.def}`)
       );
     } else {
       this.txtUnitName.setText('');
