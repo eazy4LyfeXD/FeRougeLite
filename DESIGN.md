@@ -889,6 +889,18 @@ xp = max(5, round( 40 × 0.9^(lordLevel−1) × (1 + (floor−1) × 0.15) ))
 
 This produces ~40 XP per kill at floor 1 / level 1, and keeps that roughly stable through floor 5 / level 6+. Bosses always award **100 XP**.
 
+### Passive Ability Pool
+
+These abilities are implemented as mechanics and can be assigned to any unit's `abilities` array at runtime (e.g. through floor rewards or future meta-progression). No unit starts with them by default.
+
+| Ability | Effect |
+|---|---|
+| **Enrage** | While below 50% HP, the unit's offensive stat (Pow or Moj) and effective Speed are **doubled** for damage and speed-doubling calculations. |
+| **Cleanse** | When the unit uses a healing staff, all status effects (Burn, Poison, etc.) are removed from the healed target in addition to restoring HP. |
+| **Double Hit** | Each time the unit attacks, each speed-based hit (1 or 2) independently rolls a **30% chance** to strike an additional time. Maximum 4 hits if already speed-doubling. |
+| **Lifesteal** | The unit heals for **1/8** of the total damage they inflict during their attack action (all hits, before the counter-attack). Shown as `[+XHP]` in the battle log. |
+| **Reach** | Increases the maximum range of **bow** attacks by **+2 tiles** (bows normally reach [2,2]; with Reach they reach [2,4]). Also extends the range at which a bow-wielder can counter-attack. |
+
 ### [TBD] Future progression features
 
 - Inter-floor rest screen (shop, upgrade choice, healing options)

@@ -312,7 +312,8 @@ class GameMapScene extends Phaser.Scene {
         if (u && u.faction === FACTION.PLAYER && !u.moved && u !== this.selectedUnit) {
           this.selectedUnit = u;
           this.moveRange    = u.computeMoveRange(this.grid, this.units);
-          this.attackRange  = u.computeAttackRange(this.moveRange);
+          const [minR0, maxR0] = this._weaponRange(u);
+          this.attackRange  = u.computeAttackRange(this.moveRange, minR0, maxR0);
           break;
         }
         // Move to tile (or stay in place) → open action menu
@@ -325,7 +326,8 @@ class GameMapScene extends Phaser.Scene {
           this.selectedUnit.gy = this.cursorY;
           const pos = new Map([[key, 0]]);
           this.moveRange   = pos;
-          this.attackRange = this.selectedUnit.computeAttackRange(pos);
+          const [minR1, maxR1] = this._weaponRange(this.selectedUnit);
+          this.attackRange = this.selectedUnit.computeAttackRange(pos, minR1, maxR1);
           this._openMenu();
         }
         break;
@@ -344,7 +346,9 @@ class GameMapScene extends Phaser.Scene {
       case 'items': {
         const item = (this.selectedUnit?.weapons || [])[this.invCursor];
         if (item) {
-          this.itemActOptions = item.isConsumable ? ['USE', 'DROP'] : ['EQUIP', 'DROP'];
+          this.itemActOptions = item.isConsumable
+          ? ['USE', 'DROP']
+          : (item.isStaff && item.healAmount ? ['USE', 'EQUIP', 'DROP'] : ['EQUIP', 'DROP']);
           this.itemActCursor  = 0;
           this.gameState      = 'item-action';
         }
@@ -503,15 +507,15 @@ class GameMapScene extends Phaser.Scene {
     const aw = atk.equippedWeapon;
     const dw = def.equippedWeapon;
 
-    const { dmg: atkDmg } = atk.calcDamage(def, tDef);
-    const atkDoubles = atk.sp >= def.sp + 4;
+    const { dmg: atkDmg, doubles: atkDoubles } = atk.calcDamage(def, tDef);
     const atkHits    = atkDoubles ? 2 : 1;
     const atkHit     = Math.min(100, Math.max(0,
       (aw ? aw.hit : 80) + atk.lck - def.sp * 2));
     const atkCrit    = aw ? aw.crit : 0;
 
     const dist = Math.abs(atk.gx - def.gx) + Math.abs(atk.gy - def.gy);
-    const canCounter = dist === 1;
+    const [defMinR, defMaxR] = this._weaponRange(def);
+    const canCounter = dist >= defMinR && dist <= defMaxR;
     let defDmg = 0, defHit = 0, defHits = 0, defCrit = 0;
     if (canCounter) {
       const { dmg: cd } = def.calcDamage(atk, tADef);
@@ -638,6 +642,9 @@ class GameMapScene extends Phaser.Scene {
 
   // Enter targeting mode and auto-snap cursor to nearest attackable enemy
   _enterTargeting() {
+    // Recompute attack range in case the equipped weapon changed in weapon-select
+    const [minR, maxR] = this._weaponRange(this.selectedUnit);
+    this.attackRange = this.selectedUnit.computeAttackRange(this.moveRange, minR, maxR);
     this.gameState      = 'targeting';
     this.forecastTarget = null;
     let nearest = null, bestD = 9999;
@@ -757,10 +764,33 @@ class GameMapScene extends Phaser.Scene {
       this.logT = 1800;
       this._finalizeAction(this.selectedUnit);
 
+    } else if (opt === 'USE' && item.isStaff && item.healAmount) {
+      this.selectedUnit.hp = Math.min(
+        this.selectedUnit.maxHp, this.selectedUnit.hp + item.healAmount);
+      // Cleanse passive: remove all status effects from the healed target
+      if (this.selectedUnit.abilities?.includes('cleanse')) {
+        this.selectedUnit.statusEffects = [];
+      }
+      item.uses--;
+      if (item.uses <= 0) {
+        this.selectedUnit.weapons = items.filter(w => w !== item);
+        if (this.selectedUnit.equippedWeapon === item) {
+          this.selectedUnit.equippedWeapon =
+            this.selectedUnit.weapons.find(w => !w.isStaff && !w.isConsumable)
+            || this.selectedUnit.weapons[0] || null;
+        }
+      }
+      this.battleLog = [`${this.selectedUnit.name}: ${item.name} +${item.healAmount}HP`];
+      this.logT = 1800;
+      this._finalizeAction(this.selectedUnit);
+
     } else if (opt === 'EQUIP') {
       this.selectedUnit.equippedWeapon = item;
-      this.gameState     = 'menu';
+      // Recompute attack range for the newly equipped weapon's range
+      const [minR, maxR] = this._weaponRange(this.selectedUnit);
+      this.attackRange = this.selectedUnit.computeAttackRange(this.moveRange, minR, maxR);
       this.itemActCursor = 0;
+      this._openMenu();
 
     } else if (opt === 'DROP') {
       this.selectedUnit.weapons = items.filter(w => w !== item);
@@ -807,14 +837,33 @@ class GameMapScene extends Phaser.Scene {
     const exalt = attacker.className === 'Astronomer' && Math.random() < 1 / 12;
     const { dmg, doubles } = attacker.calcDamage(defender, tDef, exalt);
 
-    // First hit (+ optional speed double)
-    defender.hp -= dmg;
-    let logLine = `${attacker.name} → ${defender.name}: ${dmg} dmg`;
-    if (exalt) logLine += ' [EXALT]';
-    if (doubles && defender.alive) {
+    // Apply attacker hits; track count and total damage for Double Hit / Lifesteal
+    let hitCount = 0, totalAtkDmg = 0;
+    const applyHit = () => {
+      if (!defender.alive) return;
       defender.hp -= dmg;
-      logLine += ' ×2';
+      totalAtkDmg += dmg;
+      hitCount++;
+    };
+
+    applyHit();                                                        // first hit (always)
+    if (doubles && defender.alive) applyHit();                         // speed double
+
+    // Double Hit passive: 30% proc per speed-based hit
+    if (attacker.abilities?.includes('double_hit')) {
+      if (defender.alive && Math.random() < 0.3)                  applyHit();
+      if (doubles && defender.alive && Math.random() < 0.3)        applyHit();
     }
+
+    // Lifesteal passive: heal 1/8 of total damage inflicted (before counter)
+    const lifeHeal = attacker.abilities?.includes('lifesteal')
+      ? Math.floor(totalAtkDmg / 8) : 0;
+    if (lifeHeal > 0) attacker.hp = Math.min(attacker.maxHp, attacker.hp + lifeHeal);
+
+    let logLine = `${attacker.name} → ${defender.name}: ${dmg} dmg`;
+    if (exalt)         logLine += ' [EXALT]';
+    if (hitCount > 1)  logLine += ` ×${hitCount}`;
+    if (lifeHeal > 0)  logLine += ` [+${lifeHeal}HP]`;
 
     // On-hit weapon effects (burn / poison)
     const aw = attacker.equippedWeapon;
@@ -834,10 +883,11 @@ class GameMapScene extends Phaser.Scene {
 
     this.battleLog = [logLine];
 
-    // Counter-attack if defender survived and is adjacent
+    // Counter-attack if defender survived and attacker is within defender's weapon range
     if (defender.alive) {
       const dist = Math.abs(attacker.gx - defender.gx) + Math.abs(attacker.gy - defender.gy);
-      if (dist === 1) {
+      const [defMinR, defMaxR] = this._weaponRange(defender);
+      if (dist >= defMinR && dist <= defMaxR) {
         const aTDef = TILE_DEF[this.grid[attacker.gy][attacker.gx]];
         const { dmg: cdmg } = defender.calcDamage(attacker, aTDef);
         attacker.hp -= cdmg;
@@ -1049,8 +1099,9 @@ class GameMapScene extends Phaser.Scene {
     ];
     this._fcTexts.forEach(t => t.setVisible(false));
 
-    // Action menu (up to 4 options: ATTACK, EXECUTE, ITEMS, WAIT)
+    // Action menu (up to 5 options: ATTACK, EXECUTE, STEAL, ITEMS, WAIT)
     this.txtMenuItems = [
+      this.add.text(0, 0, '', s(22, C.TEXT)).setDepth(6),
       this.add.text(0, 0, '', s(22, C.TEXT)).setDepth(6),
       this.add.text(0, 0, '', s(22, C.TEXT)).setDepth(6),
       this.add.text(0, 0, '', s(22, C.TEXT)).setDepth(6),
@@ -1381,6 +1432,16 @@ class GameMapScene extends Phaser.Scene {
     if (y + h > GAME_H - UI_H) y = GAME_H - UI_H - h - 8;
     if (y < 0) y = 0;
     return { x, y, w, h };
+  }
+
+  // Returns [minRange, maxRange] for the unit's equipped weapon.
+  // Reach passive adds 2 to bow max range.
+  _weaponRange(unit) {
+    const w = unit?.equippedWeapon;
+    if (!w || !w.range) return [1, 1];
+    let [minR, maxR] = w.range;
+    if (unit.abilities?.includes('reach') && w.type === 'bow') maxR += 2;
+    return [minR, maxR];
   }
 
   _stealRect() {

@@ -38,6 +38,7 @@ class Unit {
     this.weapons        = weapons.slice();
     this.equippedWeapon = this.weapons.find(w => !w.isStaff) || this.weapons[0] || null;
     this.statusEffects  = [];
+    this.abilities      = [];   // passive abilities granted during a run
     this.xp             = 0;   // 0–99; fills to 100 = level-up
   }
 
@@ -107,6 +108,10 @@ class Unit {
     if ( isMagic && this.hasStatus('poison')) atkStat = Math.floor(atkStat / 2);
     if (!isMagic && this.hasStatus('burn'))   atkStat = Math.floor(atkStat / 2);
 
+    // Enrage passive: below 50% HP doubles offensive stat and effective SP
+    const enraged = this.abilities.includes('enrage') && this.hp < this.maxHp / 2;
+    if (enraged) atkStat *= 2;
+
     // Defensive stat — ignoreDefense bypasses MDef (Exalt passive)
     // poison halves defender's Def on physical hits
     let defStat;
@@ -131,7 +136,8 @@ class Unit {
       }
     }
 
-    const doubles = this.sp >= defender.sp + 4;
+    const effectiveSP = enraged ? this.sp * 2 : this.sp;
+    const doubles = effectiveSP >= defender.sp + 4;
     return { dmg, isMagic, doubles };
   }
 
@@ -167,16 +173,20 @@ class Unit {
     return dist;
   }
 
-  // ── Attack range = 1 step outside move range ──────────────────────────────
-  computeAttackRange(moveRange) {
+  // ── Attack range: all tiles reachable at [minRange, maxRange] from move range ──
+  // minRange/maxRange come from the equipped weapon's range field.
+  computeAttackRange(moveRange, minRange = 1, maxRange = 1) {
     const atk = new Set();
     for (const key of moveRange.keys()) {
-      const [x, y] = key.split(',').map(Number);
-      for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
-        const nx = x + dx, ny = y + dy;
-        if (nx < 0 || nx >= MAP_W || ny < 0 || ny >= MAP_H) continue;
-        const nk = `${nx},${ny}`;
-        if (!moveRange.has(nk)) atk.add(nk);
+      const [ox, oy] = key.split(',').map(Number);
+      for (let ny = 0; ny < MAP_H; ny++) {
+        for (let nx = 0; nx < MAP_W; nx++) {
+          const dist = Math.abs(nx - ox) + Math.abs(ny - oy);
+          if (dist >= minRange && dist <= maxRange) {
+            const nk = `${nx},${ny}`;
+            if (!moveRange.has(nk)) atk.add(nk);
+          }
+        }
       }
     }
     return atk;
