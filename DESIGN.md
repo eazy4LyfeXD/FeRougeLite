@@ -200,7 +200,7 @@ Each of the three lords belongs to a **unique class**. Classes are permanent —
 |---|---|
 | **Pathfinder** | Ignores all terrain movement costs — every passable tile costs exactly 1 movement. Mountain, Forest, Water (if passable), etc. are all treated equally. |
 | **Lockpick** | Can open locked doors and treasure chests without a key item. **[TBD]** Locked doors and chests need to be added to map generation. |
-| **Steal** | When adjacent to an enemy, can use the Steal action instead of attacking. Takes one item from the enemy's inventory (if they carry one). **[TBD]** Requires an item system. |
+| **Steal** | When adjacent to an enemy who carries at least one item, the **STEAL** option appears in the action menu. The player picks which item to take; the item is removed from the enemy and added to the Pickpocket's inventory. Ends the turn. |
 
 **Design notes:**
 - The movement advantage makes Pickpocket excellent at rushing objectives (Throne, chests) and repositioning.
@@ -213,6 +213,8 @@ Each of the three lords belongs to a **unique class**. Classes are permanent —
 *Inspired by the Mage archetype, but with unrestricted access to all magic disciplines from the very start — no specialization required.*
 
 **Weapons:** All three magic schools + Staves
+
+**Passive ability — Exalt:** On every attack, there is a **1/12 chance** the Astronomer's strike ignores the target's MDef entirely. Damage is calculated as if MDef = 0. The battle log displays `[EXALT]` when it triggers. Applies on the initial hit only (not counters).
 
 | Magic School | FE Equivalent | Thematic Identity |
 |---|---|---|
@@ -246,7 +248,7 @@ Each of the three lords belongs to a **unique class**. Classes are permanent —
 |---|---|
 | **Mounted** | Rides a horse. Gains +2 base Move over standard infantry (Move 7 vs 5). |
 | **Terrain Burden** | The flip side of the mount — rough terrain costs more movement than it would for infantry. See terrain table below. |
-| **[TBD]** | Additional class-unique ability to be determined (e.g. Canto — move again after an action). |
+| **Gallop** | After performing any action (attack, execute, use item), the Stud Master may still move using any movement points that were not spent during the initial move that turn. The remaining blue move range is shown; the player moves normally or presses Z to skip. Does **not** trigger after WAIT. |
 
 **Terrain movement costs (Stud Master vs standard infantry):**
 

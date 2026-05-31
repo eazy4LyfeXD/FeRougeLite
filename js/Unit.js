@@ -98,7 +98,7 @@ class Unit {
   // stat comparison for weaponless units (enemies).
   // tileDef applies only to physical attacks.
   // Returns { dmg, isMagic, doubles }.
-  calcDamage(defender, tileDef = 0) {
+  calcDamage(defender, tileDef = 0, ignoreDefense = false) {
     const w       = this.equippedWeapon;
     const isMagic = w ? !!w.isMagic : this.moj > this.pow;
 
@@ -107,10 +107,11 @@ class Unit {
     if ( isMagic && this.hasStatus('poison')) atkStat = Math.floor(atkStat / 2);
     if (!isMagic && this.hasStatus('burn'))   atkStat = Math.floor(atkStat / 2);
 
-    // Defensive stat — poison halves defender's Def on physical hits
+    // Defensive stat — ignoreDefense bypasses MDef (Exalt passive)
+    // poison halves defender's Def on physical hits
     let defStat;
     if (isMagic) {
-      defStat = defender.mdef;
+      defStat = ignoreDefense ? 0 : defender.mdef;
     } else {
       const baseDef = (defender.hasStatus && defender.hasStatus('poison'))
         ? Math.floor(defender.def / 2)
@@ -136,7 +137,7 @@ class Unit {
 
   // ── BFS flood-fill for movement range ──────────────────────────────────────
   // Returns a Map<"x,y" -> cost> for all reachable tiles.
-  computeMoveRange(grid, units) {
+  computeMoveRange(grid, units, maxMove = this.move) {
     const dist  = new Map();
     const queue = [{ x: this.gx, y: this.gy, cost: 0 }];
     dist.set(`${this.gx},${this.gy}`, 0);
@@ -150,7 +151,7 @@ class Unit {
 
         const stepCost = this.moveCosts[grid[ny][nx]];
         const newCost  = cost + stepCost;
-        if (newCost > this.move) continue;
+        if (newCost > maxMove) continue;
 
         const key = `${nx},${ny}`;
         if (dist.has(key) && dist.get(key) <= newCost) continue;

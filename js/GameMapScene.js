@@ -45,6 +45,13 @@ class GameMapScene extends Phaser.Scene {
 
     this.runComplete = false;
 
+    // Gallop (Stud Master) — remaining move points after an action
+    this.gallopRemaining = 0;
+
+    // Steal (Pickpocket) — enemy being stolen from and item cursor
+    this.stealTarget = null;
+    this.stealCursor = 0;
+
     this.blinkOn   = true;
     this.blinkT    = 0;
     this.statusMsg = `Floor ${this.saveData.currentLevel}`;
@@ -238,7 +245,7 @@ class GameMapScene extends Phaser.Scene {
     if (this.phase === PHASE.ENEMY_TURN) return;
 
     // All list-mode states intercept Up/Down for navigation
-    if (['menu', 'weapon-select', 'items', 'item-action'].includes(this.gameState)) {
+    if (['menu', 'weapon-select', 'items', 'item-action', 'steal-pick'].includes(this.gameState)) {
       if (jd(this.keys.up)   || jd(this.keys.w)) this._listNavigate(-1);
       if (jd(this.keys.down) || jd(this.keys.s)) this._listNavigate(1);
       if (jd(this.keys.confirm) || jd(this.keys.enter)) this._onConfirm();
@@ -310,6 +317,8 @@ class GameMapScene extends Phaser.Scene {
         }
         // Move to tile (or stay in place) → open action menu
         if (this.moveRange.has(key) && (!u || u === this.selectedUnit)) {
+          // Track unused move points for Gallop
+          this.gallopRemaining = this.selectedUnit.move - (this.moveRange.get(key) || 0);
           this.preActionGx = this.selectedUnit.gx;
           this.preActionGy = this.selectedUnit.gy;
           this.selectedUnit.gx = this.cursorX;
@@ -358,6 +367,31 @@ class GameMapScene extends Phaser.Scene {
           this._doAttack(this.selectedUnit, u);
         }
         break;
+
+      case 'gallop':
+        // Confirm on any tile in the gallop range (or stay in place) to reposition
+        if (this.moveRange.has(key) && (!u || u === this.selectedUnit)) {
+          this.selectedUnit.gx = this.cursorX;
+          this.selectedUnit.gy = this.cursorY;
+          this.selectedUnit.moved = true;
+          this._resetSelection();
+        }
+        break;
+
+      case 'steal-target':
+        if (u && u.faction === FACTION.ENEMY && (u.weapons || []).length > 0 &&
+            this.attackRange.has(key)) {
+          this.stealTarget = u;
+          this.stealCursor = 0;
+          this.gameState   = 'steal-pick';
+        }
+        break;
+
+      case 'steal-pick': {
+        const stolen = (this.stealTarget?.weapons || [])[this.stealCursor];
+        if (stolen) this._doSteal(stolen);
+        break;
+      }
     }
   }
 
@@ -392,6 +426,17 @@ class GameMapScene extends Phaser.Scene {
         this.forecastTarget = null;
         this._openMenu();
         break;
+      case 'gallop':
+        // Skip remaining gallop movement — end the turn
+        this.selectedUnit.moved = true;
+        this._resetSelection();
+        break;
+      case 'steal-target':
+      case 'steal-pick':
+        this.stealTarget = null;
+        this.stealCursor = 0;
+        this._openMenu();
+        break;
       default:
         this._resetSelection();
         break;
@@ -405,10 +450,14 @@ class GameMapScene extends Phaser.Scene {
     // EXECUTE: unit has a charged execute weapon AND a non-boss enemy is reachable
     const hasExecute = this._hasExecuteCharge() &&
                        this.units.some(u => inRange(u) && !u.isBoss);
+    // STEAL: Pickpocket only — adjacent enemy must carry at least one item
+    const hasSteal   = this.selectedUnit?.className === 'Pickpocket' &&
+                       this._getStealableTargets().length > 0;
     const hasItems   = (this.selectedUnit?.weapons || []).length > 0;
     this.menuOptions = [
       ...(hasTarget  ? ['ATTACK']  : []),
       ...(hasExecute ? ['EXECUTE'] : []),
+      ...(hasSteal   ? ['STEAL']   : []),
       ...(hasItems   ? ['ITEMS']   : []),
       'WAIT',
     ];
@@ -435,6 +484,8 @@ class GameMapScene extends Phaser.Scene {
       }
     } else if (opt === 'EXECUTE') {
       this._enterExecute();
+    } else if (opt === 'STEAL') {
+      this._enterStealTarget();
     } else if (opt === 'ITEMS') {
       this.invCursor = 0;
       this.gameState = 'items';
@@ -484,6 +535,8 @@ class GameMapScene extends Phaser.Scene {
     this.invCursor      = 0;
     this.itemActCursor  = 0;
     this.itemActOptions = [];
+    this.stealTarget    = null;
+    this.stealCursor    = 0;
   }
 
   // ── Inventory helpers ──────────────────────────────────────────────────────
@@ -499,6 +552,7 @@ class GameMapScene extends Phaser.Scene {
   _cursorKey() {
     if (this.gameState === 'item-action') return 'itemActCursor';
     if (this.gameState === 'menu')        return 'menuCursor';
+    if (this.gameState === 'steal-pick')  return 'stealCursor';
     return 'invCursor';   // weapon-select, items
   }
 
@@ -507,6 +561,7 @@ class GameMapScene extends Phaser.Scene {
     if (this.gameState === 'weapon-select') return this._getCombatWeapons().length;
     if (this.gameState === 'items')         return (this.selectedUnit?.weapons || []).length;
     if (this.gameState === 'item-action')   return this.itemActOptions.length;
+    if (this.gameState === 'steal-pick')    return (this.stealTarget?.weapons || []).length;
     return 0;
   }
 
@@ -576,10 +631,9 @@ class GameMapScene extends Phaser.Scene {
       doLevelUp: result.leveled, gained: result.gained,
     };
 
-    attacker.moved = true;
-    this._resetSelection();
     this._removeDead();
     this._checkEndCondition();
+    this._finalizeAction(attacker);
   }
 
   // Enter targeting mode and auto-snap cursor to nearest attackable enemy
@@ -603,6 +657,81 @@ class GameMapScene extends Phaser.Scene {
     }
   }
 
+  // ── Gallop (Stud Master) ──────────────────────────────────────────────────────
+  // Called after every action. Grants the Stud Master a second move with
+  // remaining movement points; all other units end their turn immediately.
+  _finalizeAction(unit) {
+    if (this.phase !== PHASE.PLAYER_TURN || unit.faction !== FACTION.PLAYER) {
+      unit.moved = true;
+      this._resetSelection();
+      return;
+    }
+    if (unit.className === 'Stud Master' && this.gallopRemaining > 0) {
+      this._enterGallop(unit);
+    } else {
+      unit.moved = true;
+      this._resetSelection();
+    }
+  }
+
+  _enterGallop(unit) {
+    this.selectedUnit = unit;
+    // Recompute move range limited to unused movement points
+    this.moveRange   = unit.computeMoveRange(this.grid, this.units, this.gallopRemaining);
+    this.attackRange = new Set();
+    this.gameState   = 'gallop';
+    this.cursorX     = unit.gx;
+    this.cursorY     = unit.gy;
+    this._computeCamera();
+  }
+
+  // ── Steal (Pickpocket) ────────────────────────────────────────────────────────
+  _getStealableTargets() {
+    return this.units.filter(u =>
+      u.faction === FACTION.ENEMY && u.alive &&
+      (u.weapons || []).length > 0 &&
+      this.attackRange.has(`${u.gx},${u.gy}`)
+    );
+  }
+
+  _enterStealTarget() {
+    const targets = this._getStealableTargets();
+    if (targets.length === 0) return;
+
+    // Snap cursor to nearest valid target
+    let nearest = targets[0], bestD = 9999;
+    for (const u of targets) {
+      const d = Math.abs(u.gx - this.selectedUnit.gx) + Math.abs(u.gy - this.selectedUnit.gy);
+      if (d < bestD) { bestD = d; nearest = u; }
+    }
+    this.stealTarget = nearest;
+    this.stealCursor = 0;
+
+    if (targets.length === 1) {
+      // Only one target — skip targeting cursor, go straight to item list
+      this.gameState = 'steal-pick';
+    } else {
+      this.cursorX   = nearest.gx;
+      this.cursorY   = nearest.gy;
+      this._computeCamera();
+      this.gameState = 'steal-target';
+    }
+  }
+
+  _doSteal(item) {
+    this.stealTarget.weapons = this.stealTarget.weapons.filter(w => w !== item);
+    if (this.stealTarget.equippedWeapon === item) {
+      this.stealTarget.equippedWeapon =
+        this.stealTarget.weapons.find(w => !w.isStaff && !w.isConsumable)
+        || this.stealTarget.weapons[0] || null;
+    }
+    this.selectedUnit.weapons.push(item);
+
+    this.battleLog = [`${this.selectedUnit.name} stole ${item.name}!`];
+    this.logT = 2500;
+    this._finalizeAction(this.selectedUnit);
+  }
+
   // Execute the selected action in the item-action sub-menu
   _confirmItemAction() {
     const items = this.selectedUnit?.weapons || [];
@@ -624,10 +753,9 @@ class GameMapScene extends Phaser.Scene {
             || this.selectedUnit.weapons[0] || null;
         }
       }
-      this.selectedUnit.moved = true;
       this.battleLog = [`${this.selectedUnit.name}: used ${item.name}`];
       this.logT = 1800;
-      this._resetSelection();
+      this._finalizeAction(this.selectedUnit);
 
     } else if (opt === 'EQUIP') {
       this.selectedUnit.equippedWeapon = item;
@@ -674,11 +802,15 @@ class GameMapScene extends Phaser.Scene {
   // ═══════════════════════════════════════════════════════════════════════════
   _doAttack(attacker, defender) {
     const tDef = TILE_DEF[this.grid[defender.gy][defender.gx]];
-    const { dmg, doubles } = attacker.calcDamage(defender, tDef);
+
+    // Exalt — Astronomer passive: 1/12 chance to ignore enemy MDef on magic attacks
+    const exalt = attacker.className === 'Astronomer' && Math.random() < 1 / 12;
+    const { dmg, doubles } = attacker.calcDamage(defender, tDef, exalt);
 
     // First hit (+ optional speed double)
     defender.hp -= dmg;
     let logLine = `${attacker.name} → ${defender.name}: ${dmg} dmg`;
+    if (exalt) logLine += ' [EXALT]';
     if (doubles && defender.alive) {
       defender.hp -= dmg;
       logLine += ' ×2';
@@ -714,9 +846,7 @@ class GameMapScene extends Phaser.Scene {
       }
     }
 
-    attacker.moved = true;
     this.logT = 2500;
-    this._resetSelection();
 
     // Award XP for any kill where a player unit is responsible.
     // Covers both: player attacks and kills, AND enemy attacks but dies on counter.
@@ -746,6 +876,7 @@ class GameMapScene extends Phaser.Scene {
 
     this._removeDead();
     this._checkEndCondition();
+    this._finalizeAction(attacker);
   }
 
   _removeDead() {
@@ -942,6 +1073,12 @@ class GameMapScene extends Phaser.Scene {
     // Item action sub-menu (USE/EQUIP + DROP)
     this.txtItemAct = Array.from({ length: 2 }, () =>
       this.add.text(0, 0, '', s(18, C.TEXT)).setDepth(7).setVisible(false)
+    );
+
+    // Steal item list (steal-pick state — shows target enemy's inventory)
+    this.txtStealHeader = this.add.text(0, 0, 'Steal item:', s(18, C.TITLE)).setDepth(6).setVisible(false);
+    this.txtStealItems  = Array.from({ length: 4 }, () =>
+      this.add.text(0, 0, '', s(18, C.TEXT)).setDepth(6).setVisible(false)
     );
   }
 
@@ -1166,6 +1303,17 @@ class GameMapScene extends Phaser.Scene {
       }
     }
 
+    // ── Steal item popup (steal-pick state) ───────────────────────────────────
+    if (this.gameState === 'steal-pick' && this.stealTarget) {
+      const r = this._stealRect();
+      g.fillStyle(C.PANEL_BG, 0.96);
+      g.fillRect(r.x, r.y, r.w, r.h);
+      g.lineStyle(4, C.PANEL_BD, 1);
+      g.strokeRect(r.x, r.y, r.w, r.h);
+      g.fillStyle(C.SEL_BD, 0.2);
+      g.fillRect(r.x + 4, r.y + 38 + this.stealCursor * 48, r.w - 8, 44);
+    }
+
     // ── Action menu panel (near selected unit, menu state only) ────────────
     if (this.gameState === 'menu' && this.selectedUnit) {
       const r = this._menuRect();
@@ -1233,6 +1381,18 @@ class GameMapScene extends Phaser.Scene {
     if (y + h > GAME_H - UI_H) y = GAME_H - UI_H - h - 8;
     if (y < 0) y = 0;
     return { x, y, w, h };
+  }
+
+  _stealRect() {
+    if (!this.stealTarget) return { x: 16, y: 16, w: 360, h: 80 };
+    const { x: sx, y: sy } = this._screenPos(this.stealTarget.gx, this.stealTarget.gy);
+    const list = this.stealTarget.weapons || [];
+    const w = 360, h = Math.max(1, list.length) * 48 + 48;
+    let x = sx + TILE_S + 4;
+    if (x + w > GAME_W) x = sx - w - 4;
+    let y = sy - 8;
+    if (y + h > GAME_H - UI_H) y = GAME_H - UI_H - h - 8;
+    return { x: Math.max(0, x), y: Math.max(0, y), w, h };
   }
 
   _updateHudText() {
@@ -1366,6 +1526,24 @@ class GameMapScene extends Phaser.Scene {
       }
     }
 
+    // ── Steal item list (steal-pick) ──────────────────────────────────────────
+    this.txtStealHeader.setVisible(false);
+    this.txtStealItems.forEach(t => t.setVisible(false));
+    if (this.gameState === 'steal-pick' && this.stealTarget) {
+      const list = this.stealTarget.weapons || [];
+      const r    = this._stealRect();
+      this.txtStealHeader.setPosition(r.x + 16, r.y + 8).setVisible(true);
+      for (let i = 0; i < Math.min(list.length, this.txtStealItems.length); i++) {
+        const item = list[i];
+        const sel  = i === this.stealCursor;
+        this.txtStealItems[i]
+          .setText(`${sel ? '▶' : ' '} ${item.name}  ${item.uses}/${item.maxUses}`)
+          .setPosition(r.x + 16, r.y + 40 + i * 48)
+          .setColor(sel ? C.TITLE : C.TEXT)
+          .setVisible(true);
+      }
+    }
+
     // XP bar label (hides status/hint while animating)
     const showXP = !!this.xpAnim;
     if (showXP) {
@@ -1384,6 +1562,12 @@ class GameMapScene extends Phaser.Scene {
         ? (this.forecastTarget ? 'X:attack  Z:back' : 'aim at enemy  Z:back')
         : this.gameState === 'execute'
         ? (this.forecastTarget ? 'X:execute  Z:back' : 'aim at enemy  Z:back')
+        : this.gameState === 'gallop'
+        ? 'Gallop — move remaining tiles  Z:skip'
+        : this.gameState === 'steal-target'
+        ? 'Select enemy to steal from  Z:back'
+        : this.gameState === 'steal-pick'
+        ? 'X:steal item  Z:back'
         : this.gameState === 'menu'
         ? 'X:confirm  Z:undo move'
         : this.gameState === 'weapon-select'
