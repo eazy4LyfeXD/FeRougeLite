@@ -12,12 +12,20 @@ class FloorRewardScene extends Phaser.Scene {
 
   // ── Upgrade pool ─────────────────────────────────────────────────────────────
   static POOL = [
-    { id: 'repair',          label: 'Repair Items',    desc: 'Restore all items by half their max uses.'              },
-    { id: 'full_heal',       label: 'Full Heal',        desc: 'Fully restore the lord\'s HP.'                          },
-    { id: 'level_up',        label: 'Level Up',         desc: 'Gain one level. Stat bonuses roll immediately.'         },
-    { id: 'duplicate',       label: 'Duplicate Item',   desc: 'Select one item to receive a full-uses copy.'           },
-    { id: 'recruit_young',   label: 'Recruit: Rookie',  desc: 'A Grunt or Clergy joins — high potential, low bases.'   },
-    { id: 'recruit_veteran', label: 'Recruit: Veteran', desc: 'A Bulwark or Fletcher joins — high bases, slow growth.' },
+    { id: 'repair',               label: 'Repair Items',    desc: 'Restore all items by half their max uses.'                            },
+    { id: 'full_heal',            label: 'Full Heal',        desc: 'Fully restore the lord\'s HP.'                                        },
+    { id: 'level_up',             label: 'Level Up',         desc: 'Gain one level. Stat bonuses roll immediately.'                       },
+    { id: 'duplicate',            label: 'Duplicate Item',   desc: 'Select one item to receive a full-uses copy.'                         },
+    { id: 'recruit_young',        label: 'Recruit: Rookie',  desc: 'A Grunt or Clergy joins — high potential, low bases.'                 },
+    { id: 'recruit_veteran',      label: 'Recruit: Veteran', desc: 'A Bulwark or Fletcher joins — high bases, slow growth.'               },
+    { id: 'weapon_blaze',         label: 'Blaze Weapon',     desc: 'Receive a Blaze weapon. Burns on hit (35%): halves target Pow.'       },
+    { id: 'weapon_frost',         label: 'Frost Weapon',     desc: 'Receive a Frost weapon. Freezes on hit (35%): immobilizes target.'    },
+    { id: 'weapon_poison',        label: 'Poison Weapon',    desc: 'Receive a Poison weapon. Poisons on hit (35%): 15% max HP per turn.'  },
+    { id: 'weapon_spark',         label: 'Spark Weapon',     desc: 'Receive a Spark weapon. Paralyzes on hit (35%): halves target Spd.'   },
+    { id: 'ability_double_blaze', label: 'Double Blaze',     desc: 'Give a unit Double Blaze. Their Blaze weapons deal 2× might.'         },
+    { id: 'ability_double_frost', label: 'Double Frost',     desc: 'Give a unit Double Frost. Their Frost weapons deal 2× might.'         },
+    { id: 'ability_double_poison',label: 'Double Poison',    desc: 'Give a unit Double Poison. Their Poison weapons deal 2× might.'        },
+    { id: 'ability_double_spark', label: 'Double Spark',     desc: 'Give a unit Double Spark. Their Spark weapons deal 2× might.'         },
   ];
 
   // ── Recruitable unit templates ────────────────────────────────────────────────
@@ -36,6 +44,13 @@ class FloorRewardScene extends Phaser.Scene {
       growths: { hp: 55, pow: 5,  mag: 90, sp: 65, lck: 75, def: 10, mdef: 85 },
       weapons: ['WOOD_TOME', 'HEAL', 'HEALING_POTION'],
     },
+    {
+      name: 'Ruffian', className: 'Ruffian', color: 0xb05030, symbol: '♕',
+      level: 1,
+      stats:   { hp: 19, pow: 8,  mag: 0, sp: 4, lck: 3, def: 5,  mdef: 2, move: 4 },
+      growths: { hp: 90, pow: 70, mag: 0, sp: 35, lck: 30, def: 45, mdef: 15 },
+      weapons: ['WOOD_AXE', 'HEALING_POTION'],
+    },
   ];
 
   static VETERAN_RECRUITS = [
@@ -53,14 +68,27 @@ class FloorRewardScene extends Phaser.Scene {
       growths: { hp: 35, pow: 30, mag: 0, sp: 25, lck: 30, def: 20, mdef: 10 },
       weapons: ['BRONZE_SWORD', 'BRONZE_BOW', 'HEALING_POTION'],
     },
+    {
+      name: 'Ruffian', className: 'Ruffian', color: 0xb05030, symbol: '♕',
+      level: 7,
+      stats:   { hp: 46, pow: 18, mag: 0, sp: 7,  lck: 5, def: 10, mdef: 4, move: 4 },
+      growths: { hp: 90, pow: 70, mag: 0, sp: 35, lck: 30, def: 45, mdef: 15 },
+      weapons: ['BRONZE_AXE', 'HEALING_POTION'],
+    },
   ];
 
   create() {
-    this.gameState  = 'select';
-    this.cursor     = 0;
-    this.itemCursor = 0;
-    this.lordUnit   = this._buildLordUnit();
-    this.upgrades   = this._pickUpgrades(3);
+    this.gameState        = 'select';
+    this.cursor           = 0;
+    this.itemCursor       = 0;
+    this.weaponPickCursor = 0;
+    this.pendingElement   = null;   // 'blaze' | 'frost' | 'poison' | 'spark'
+    this.weaponPickList   = [];     // [{name, className, level, isLord, allyIdx}]
+    this.abilityPickCursor = 0;
+    this.pendingAbilityId  = null;  // 'double_blaze' | 'double_frost' | ...
+    this.abilityPickList   = [];    // [{name, className, level, isLord, allyIdx}]
+    this.lordUnit          = this._buildLordUnit();
+    this.upgrades          = this._pickUpgrades(3);
 
     this.gfx = this.add.graphics();
     this.keys = this.input.keyboard.addKeys({
@@ -99,6 +127,8 @@ class FloorRewardScene extends Phaser.Scene {
       lord.sp    = ps.sp;     lord.lck  = ps.lck;
       lord.def   = ps.def;    lord.mdef = ps.mdef;
       lord.level = ps.level;  lord.xp   = ps.xp || 0;
+      if (ps.abilities && ps.abilities.length > 0)
+        lord.abilities = [...ps.abilities];
       lord.weapons = (ps.weapons || []).map(w => {
         const c = { ...w };
         if (c.effect) c.effect = { ...c.effect };
@@ -115,12 +145,16 @@ class FloorRewardScene extends Phaser.Scene {
   // ── Pick n distinct upgrades ─────────────────────────────────────────────────
   // 'duplicate' excluded if inventory is empty.
   // recruit options only appear after floor 1 (currentLevel === 2 at reward time).
+  // elemental weapon options excluded if no party member uses any physical weapon.
   _pickUpgrades(n) {
-    const hasItems     = (this.saveData.playerStats?.weapons || []).length > 0;
-    const afterFloor1  = this.saveData.currentLevel === 2;
+    const hasItems    = (this.saveData.playerStats?.weapons || []).length > 0;
+    const afterFloor1 = this.saveData.currentLevel === 2;
+    const anyPhysical = this._buildWeaponPickList().length > 0;
+
     const pool = FloorRewardScene.POOL.filter(u => {
-      if (u.id === 'duplicate'                                        && !hasItems)    return false;
-      if ((u.id === 'recruit_young' || u.id === 'recruit_veteran')   && !afterFloor1) return false;
+      if (u.id === 'duplicate'                                      && !hasItems)    return false;
+      if ((u.id === 'recruit_young' || u.id === 'recruit_veteran') && !afterFloor1) return false;
+      if (u.id.startsWith('weapon_')                               && !anyPhysical) return false;
       return true;
     });
     const shuffled = pool.slice().sort(() => Math.random() - 0.5);
@@ -151,10 +185,18 @@ class FloorRewardScene extends Phaser.Scene {
       this.add.text(0, 0, '', f(18, C.DIM)).setDepth(2)
     );
 
-    // Item-pick overlay
+    // Item-pick overlay (duplicate)
     this.txtPickHeader = this.add.text(0, 0, 'Select an item to duplicate:', f(22, C.TITLE))
       .setDepth(4).setVisible(false);
     this.txtPickItems = Array.from({ length: 6 }, () =>
+      this.add.text(0, 0, '', f(20, C.TEXT)).setDepth(4).setVisible(false)
+    );
+
+    // Shared party-pick overlay — used by both weapon-pick and ability-pick.
+    // lord + up to 6 allies = 7 rows max.
+    this.txtPartyPickHeader = this.add.text(0, 0, '', f(22, C.TITLE))
+      .setDepth(4).setVisible(false);
+    this.txtPartyPickItems = Array.from({ length: 7 }, () =>
       this.add.text(0, 0, '', f(20, C.TEXT)).setDepth(4).setVisible(false)
     );
   }
@@ -186,6 +228,22 @@ class FloorRewardScene extends Phaser.Scene {
       if (jd(this.keys.up)   || jd(this.keys.w))    this.itemCursor = Math.max(0, this.itemCursor - 1);
       if (jd(this.keys.down) || jd(this.keys.s))    this.itemCursor = Math.min(items.length - 1, this.itemCursor + 1);
       if (jd(this.keys.confirm) || jd(this.keys.enter)) this._confirmDuplicate();
+      if (jd(this.keys.cancel)  || jd(this.keys.esc))   this.gameState = 'select';
+    }
+
+    if (this.gameState === 'weapon-pick') {
+      const len = this.weaponPickList.length;
+      if (jd(this.keys.up)   || jd(this.keys.w))    this.weaponPickCursor = Math.max(0, this.weaponPickCursor - 1);
+      if (jd(this.keys.down) || jd(this.keys.s))    this.weaponPickCursor = Math.min(len - 1, this.weaponPickCursor + 1);
+      if (jd(this.keys.confirm) || jd(this.keys.enter)) this._confirmWeaponPick();
+      if (jd(this.keys.cancel)  || jd(this.keys.esc))   this.gameState = 'select';
+    }
+
+    if (this.gameState === 'ability-pick') {
+      const len = this.abilityPickList.length;
+      if (jd(this.keys.up)   || jd(this.keys.w))    this.abilityPickCursor = Math.max(0, this.abilityPickCursor - 1);
+      if (jd(this.keys.down) || jd(this.keys.s))    this.abilityPickCursor = Math.min(len - 1, this.abilityPickCursor + 1);
+      if (jd(this.keys.confirm) || jd(this.keys.enter)) this._confirmAbilityPick();
       if (jd(this.keys.cancel)  || jd(this.keys.esc))   this.gameState = 'select';
     }
 
@@ -239,7 +297,158 @@ class FloorRewardScene extends Phaser.Scene {
         this._fadeToGameMap();
         break;
       }
+
+      case 'weapon_blaze':
+      case 'weapon_frost':
+      case 'weapon_poison':
+      case 'weapon_spark': {
+        const element = upg.id.slice(7);
+        const list    = this._buildWeaponPickList();
+        if (list.length === 1) {
+          this._giveElementalWeapon(element, list[0]);
+          this._saveLordStats();
+          this._fadeToGameMap();
+        } else {
+          this.pendingElement   = element;
+          this.weaponPickList   = list;
+          this.weaponPickCursor = 0;
+          this.gameState        = 'weapon-pick';
+        }
+        break;
+      }
+
+      case 'ability_double_blaze':
+      case 'ability_double_frost':
+      case 'ability_double_poison':
+      case 'ability_double_spark': {
+        const abilityId = upg.id.slice(8); // e.g. 'double_blaze'
+        const list      = this._buildAllPartyList();
+        if (list.length === 1) {
+          this._giveAbility(abilityId, list[0]);
+          this._saveLordStats();
+          this._fadeToGameMap();
+        } else {
+          this.pendingAbilityId   = abilityId;
+          this.abilityPickList    = list;
+          this.abilityPickCursor  = 0;
+          this.gameState          = 'ability-pick';
+        }
+        break;
+      }
     }
+  }
+
+  // ── Confirm elemental weapon recipient ────────────────────────────────────────
+  _confirmWeaponPick() {
+    const entry = this.weaponPickList[this.weaponPickCursor];
+    if (!entry) return;
+    this._giveElementalWeapon(this.pendingElement, entry);
+    this._saveLordStats();
+    this._fadeToGameMap();
+  }
+
+  // ── Confirm ability recipient ─────────────────────────────────────────────────
+  _confirmAbilityPick() {
+    const entry = this.abilityPickList[this.abilityPickCursor];
+    if (!entry) return;
+    this._giveAbility(this.pendingAbilityId, entry);
+    this._saveLordStats();
+    this._fadeToGameMap();
+  }
+
+  // ── Give elemental weapon to a party member ───────────────────────────────────
+  _giveElementalWeapon(element, entry) {
+    const weapon = this._makeElementalWeaponFor(element, entry);
+    if (entry.isLord) {
+      this.lordUnit.weapons.push(weapon);
+      if (!this.lordUnit.equippedWeapon && !weapon.isStaff && !weapon.isConsumable)
+        this.lordUnit.equippedWeapon = weapon;
+    } else {
+      const ally = this.saveData.allies[entry.allyIdx];
+      const copy = { ...weapon };
+      if (copy.effect) copy.effect = { ...copy.effect };
+      ally.weapons.push(copy);
+    }
+  }
+
+  // ── Add elemental ability to a party member (no duplicates) ──────────────────
+  _giveAbility(abilityId, entry) {
+    if (entry.isLord) {
+      if (!this.lordUnit.abilities.includes(abilityId))
+        this.lordUnit.abilities.push(abilityId);
+    } else {
+      const ally = this.saveData.allies[entry.allyIdx];
+      if (!ally.abilities) ally.abilities = [];
+      if (!ally.abilities.includes(abilityId))
+        ally.abilities.push(abilityId);
+    }
+  }
+
+  // ── Build party list: only members who can wield a physical weapon ────────────
+  _buildWeaponPickList() {
+    const physical = new Set(['sword', 'lance', 'axe', 'bow']);
+    const list = [];
+
+    const ld      = LORD_DEFS[this.saveData.selectedLord];
+    const lordKey = ld.className.toUpperCase().replace(/\s+/g, '_');
+    if ((CLASSES[lordKey]?.weapons || []).some(w => physical.has(w))) {
+      list.push({
+        name: ld.label, className: ld.className,
+        level: this.saveData.playerStats?.level || 1,
+        isLord: true, allyIdx: -1,
+      });
+    }
+
+    (this.saveData.allies || []).forEach((ally, idx) => {
+      const ak = ally.className.toUpperCase().replace(/\s+/g, '_');
+      if ((CLASSES[ak]?.weapons || []).some(w => physical.has(w))) {
+        list.push({
+          name: ally.name, className: ally.className,
+          level: ally.level || 1,
+          isLord: false, allyIdx: idx,
+        });
+      }
+    });
+
+    return list;
+  }
+
+  // ── Build party list: every party member (for ability rewards) ────────────────
+  _buildAllPartyList() {
+    const ld = LORD_DEFS[this.saveData.selectedLord];
+    const list = [{
+      name: ld.label, className: ld.className,
+      level: this.saveData.playerStats?.level || 1,
+      isLord: true, allyIdx: -1,
+    }];
+
+    (this.saveData.allies || []).forEach((ally, idx) => {
+      list.push({
+        name: ally.name, className: ally.className,
+        level: ally.level || 1,
+        isLord: false, allyIdx: idx,
+      });
+    });
+
+    return list;
+  }
+
+  // ── Create the elemental weapon appropriate for a party entry ─────────────────
+  _makeElementalWeaponFor(element, entry) {
+    const prefix  = element.toUpperCase();
+    const typeMap = { sword: 'SWORD', lance: 'LANCE', axe: 'AXE', bow: 'BOW' };
+
+    const classKey = (entry.isLord
+      ? LORD_DEFS[this.saveData.selectedLord].className
+      : entry.className
+    ).toUpperCase().replace(/\s+/g, '_');
+
+    const matching = (CLASSES[classKey]?.weapons || [])
+      .filter(w => typeMap[w]).map(w => typeMap[w]);
+
+    const types = matching.length > 0 ? matching : ['SWORD', 'LANCE', 'AXE', 'BOW'];
+    const type  = types[Math.floor(Math.random() * types.length)];
+    return makeWeapon(`${prefix}_${type}`);
   }
 
   // ── Duplicate: push a full-uses clone of the chosen item ──────────────────────
@@ -282,6 +491,8 @@ class FloorRewardScene extends Phaser.Scene {
   }
 
   // ── Write lord state back into saveData and persist to localStorage ───────────
+  // saveData.allies is mutated in place, so SaveData.save here also persists
+  // any ability or weapon changes made to allies this session.
   _saveLordStats() {
     const lord = this.lordUnit;
     this.saveData.playerStats = {
@@ -292,6 +503,7 @@ class FloorRewardScene extends Phaser.Scene {
       level: lord.level, xp:    lord.xp || 0,
       weapons:     lord.weapons.map(w => ({ ...w })),
       equippedIdx: lord.weapons.indexOf(lord.equippedWeapon),
+      abilities:   [...(lord.abilities || [])],
     };
     SaveData.save(this.slotIndex, this.saveData);
   }
@@ -319,6 +531,15 @@ class FloorRewardScene extends Phaser.Scene {
     } else {
       this.txtPickHeader.setVisible(false);
       this.txtPickItems.forEach(t => t.setVisible(false));
+    }
+
+    if (this.gameState === 'weapon-pick') {
+      this._renderPartyPick(g, this.weaponPickList, this.weaponPickCursor, this.pendingElement, 'weapon');
+    } else if (this.gameState === 'ability-pick') {
+      this._renderPartyPick(g, this.abilityPickList, this.abilityPickCursor, this.pendingAbilityId, 'ability');
+    } else {
+      this.txtPartyPickHeader.setVisible(false);
+      this.txtPartyPickItems.forEach(t => t.setVisible(false));
     }
   }
 
@@ -360,7 +581,8 @@ class FloorRewardScene extends Phaser.Scene {
       this.txtCardDescs[i].setVisible(false);
     }
 
-    this.txtHint.setText(this.gameState === 'item-pick' ? '' : 'W/S: navigate   X: select');
+    const overlayOpen = ['item-pick', 'weapon-pick', 'ability-pick'].includes(this.gameState);
+    this.txtHint.setText(overlayOpen ? '' : 'W/S: navigate   X: select');
   }
 
   _renderItemPick(g) {
@@ -394,6 +616,52 @@ class FloorRewardScene extends Phaser.Scene {
     }
     for (let i = items.length; i < this.txtPickItems.length; i++) {
       this.txtPickItems[i].setVisible(false);
+    }
+  }
+
+  // Shared renderer for both weapon-pick and ability-pick party selectors.
+  _renderPartyPick(g, list, cursor, pendingId, pickType) {
+    const rowH = 52;
+    const popW = 580;
+    const popH = list.length * rowH + 80;
+    const popX = (GAME_W - popW) / 2;
+    const popY = (GAME_H - popH) / 2;
+
+    g.fillStyle(C.PANEL_BG, 0.98);
+    g.fillRect(popX, popY, popW, popH);
+    g.lineStyle(4, C.PANEL_BD, 1);
+    g.strokeRect(popX, popY, popW, popH);
+
+    g.fillStyle(C.SEL_BD, 0.22);
+    g.fillRect(popX + 4, popY + 44 + cursor * rowH, popW - 8, rowH - 4);
+
+    // Build a readable label from the pending ID:
+    // 'blaze' → 'Blaze'  |  'double_blaze' → 'Double Blaze'
+    const label = (pendingId || '')
+      .split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
+    const headerText = pickType === 'ability'
+      ? `Give ${label} passive to:`
+      : `Give ${label} weapon to:`;
+
+    this.txtPartyPickHeader
+      .setText(headerText)
+      .setPosition(popX + 16, popY + 10)
+      .setVisible(true);
+
+    this.txtHint.setText('W/S: cycle   X: confirm   Z: back');
+
+    for (let i = 0; i < Math.min(list.length, this.txtPartyPickItems.length); i++) {
+      const entry = list[i];
+      const sel   = i === cursor;
+      this.txtPartyPickItems[i]
+        .setText(`${sel ? '▶' : ' '}  ${entry.name}   ${entry.className}   Lv ${entry.level}`)
+        .setPosition(popX + 16, popY + 46 + i * rowH)
+        .setColor(sel ? C.TITLE : C.TEXT)
+        .setVisible(true);
+    }
+    for (let i = list.length; i < this.txtPartyPickItems.length; i++) {
+      this.txtPartyPickItems[i].setVisible(false);
     }
   }
 }

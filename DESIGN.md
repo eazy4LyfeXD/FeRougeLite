@@ -688,9 +688,28 @@ Each weapon has a **uses** counter. One use is consumed per combat engagement (a
 
 ---
 
-### Basic Weapon Tiers
+### Weapon Tiers
 
-Three tiers apply to all physical weapons and bows. Higher tiers hit harder but have fewer uses.
+Six regular tiers plus two special tiers apply across all physical and magic weapons. Higher tiers hit harder but carry fewer uses. **Gold** and **Pearl** are burst weapons — far higher damage than their regular-tier counterparts but severely limited uses.
+
+| Tier | Relative power | Uses | Notes |
+|---|---|---|---|
+| Wood | Weakest | 35–40 | Starter gear |
+| Bronze | Low | 25 | |
+| Iron | Moderate | 20 | |
+| Steel | Good | 18 | |
+| Ivory | Strong | 15 | |
+| Dragonscale | Powerful | 12 | |
+| **Gold** | **1.5× Steel** | **3** | Special; slight crit bonus |
+| **Pearl** | **1.5× Dragonscale** | **1** | Decisive strike; high crit |
+
+**Floor weapon progression (5-floor game):**
+
+| Floor | Regular enemies | Boss |
+|---|---|---|
+| 1 | Wood | Wood |
+| 2–3 | Wood | Bronze |
+| 4–5 | Bronze | Iron |
 
 #### Swords *(physical, range 1)*
 

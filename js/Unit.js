@@ -78,7 +78,7 @@ class Unit {
   // Apply poison DOT at the start of this unit's phase. Returns damage dealt.
   tickPoison() {
     if (!this.hasStatus('poison')) return 0;
-    const dmg = 2;
+    const dmg = Math.max(1, Math.floor(this.maxHp * 0.15));
     this.hp -= dmg;
     return dmg;
   }
@@ -124,7 +124,10 @@ class Unit {
       defStat = baseDef + tileDef;
     }
 
-    let dmg = Math.max(1, (atkStat + (w ? w.might : 0)) - defStat);
+    const elementBoost = { burn: 'double_blaze', freeze: 'double_frost', poison: 'double_poison', paralyze: 'double_spark' };
+    const boostKey = w?.effect?.type ? elementBoost[w.effect.type] : null;
+    const might    = (w ? w.might : 0) * (boostKey && this.abilities.includes(boostKey) ? 2 : 1);
+    let dmg = Math.max(1, (atkStat + might) - defStat);
 
     // Weapon type-effectiveness multiplier (Piercer vs Bulwark, Swift Blade vs axe)
     if (w && w.effect && w.effect.type === 'effective') {
@@ -136,7 +139,8 @@ class Unit {
       }
     }
 
-    const effectiveSP = enraged ? this.sp * 2 : this.sp;
+    const baseSP      = this.hasStatus('paralyze') ? Math.floor(this.sp / 2) : this.sp;
+    const effectiveSP = enraged ? baseSP * 2 : baseSP;
     const doubles = effectiveSP >= defender.sp + 4;
     return { dmg, isMagic, doubles };
   }

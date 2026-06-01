@@ -151,6 +151,8 @@ class GameMapScene extends Phaser.Scene {
           || lord.weapons.find(w => !w.isStaff && !w.isConsumable)
           || lord.weapons[0] || null;
       }
+      if (ps.abilities && ps.abilities.length > 0)
+        lord.abilities = [...ps.abilities];
       // 50 % HP restoration at the start of each new floor
       lord.hp = Math.min(lord.maxHp, lord.hp + Math.floor(lord.maxHp / 2));
     }
@@ -202,8 +204,10 @@ class GameMapScene extends Phaser.Scene {
 
     // ── Enemies (scaled by floor) ────────────────────────────────────────────
     const sc   = (base, perFloor) => base + Math.round(fMod * perFloor);
-    // Weapon tier: Wood (fl 1) → Bronze (fl 2-3) → Iron (fl 4-5)
-    const tier = floor >= 4 ? 'IRON' : floor >= 2 ? 'BRONZE' : 'WOOD';
+    // Unit weapons:  Wood (fl 1-3) → Bronze (fl 4-5)
+    const tier     = floor >= 4 ? 'BRONZE' : 'WOOD';
+    // Boss weapons:  Wood (fl 1) → Bronze (fl 2-3) → Iron (fl 4-5)
+    const bossTier = floor >= 4 ? 'IRON' : floor >= 2 ? 'BRONZE' : 'WOOD';
 
     const eTypes = [
       {
@@ -225,7 +229,7 @@ class GameMapScene extends Phaser.Scene {
       {
         name: 'Necromancer', className: 'Necromancer',
         color: 0x9030c0, symbol: '♜',
-        hp: sc(10,3), pow: 2,          mag: sc(10,1), sp: sc(5,0.5),
+        hp: sc(10,3), pow: 2,          mag: sc(7,1),  sp: sc(5,0.5),
         lck: 4,        def: sc(1,1),   mdef: sc(5,0.5), move: 5,
         moveCosts: CLASSES.NECROMANCER.moveCosts,
         weapons: [makeWeapon(`${tier}_TOME`)],
@@ -239,6 +243,24 @@ class GameMapScene extends Phaser.Scene {
         abilities: ['hi_crit'],
         weapons: [makeWeapon(`${tier}_SWORD`)],
       },
+      {
+        name: 'Alicorn Rider', className: 'Alicorn Rider',
+        color: 0x50b0d0, symbol: '♦',
+        hp: sc(12,2.5), pow: sc(7,1), mag: 0,           sp: sc(7,1),
+        lck: 4,          def: sc(3,0.5), mdef: sc(4,0.5), move: 7,
+        moveCosts: CLASSES.ALICORN_RIDER.moveCosts,
+        abilities: ['bow_weakness', 'flight'],
+        weapons: [makeWeapon(`${tier}_LANCE`)],
+      },
+      {
+        name: 'Ruffian',      className: 'Ruffian',
+        color: 0xa05020, symbol: '✠',
+        hp: sc(17,3.5), pow: sc(9,1.5), mag: 0,          sp: sc(3,0.5),
+        lck: 2,          def: sc(3,0.5), mdef: sc(2,0.5), move: 4,
+        moveCosts: CLASSES.RUFFIAN.moveCosts,
+        abilities: ['hi_crit'],
+        weapons: [makeWeapon(`${tier}_AXE`)],
+      },
     ];
     const usedPos = new Set();
     let attempts = 0;
@@ -250,7 +272,7 @@ class GameMapScene extends Phaser.Scene {
       if (this._tilePassable(ex, ey) && !usedPos.has(k)) {
         usedPos.add(k);
         const et = this.mapRng.pick(eTypes);
-        this.units.push(new Unit({ ...et, faction: FACTION.ENEMY, gx: ex, gy: ey }));
+        this.units.push(new Unit({ ...et, faction: FACTION.ENEMY, gx: ex, gy: ey, level: floor }));
       }
     }
 
@@ -263,7 +285,7 @@ class GameMapScene extends Phaser.Scene {
           hp: sc(30,8), pow: sc(12,2), mag: 2,           sp: sc(4,0.5),
           lck: 5,        def: sc(7,2), mdef: sc(4,0.5),  move: 3,
           moveCosts: CLASSES.BULWARK.moveCosts,
-          weapons: [makeWeapon(`${tier}_LANCE`)],
+          weapons: [makeWeapon(`${bossTier}_LANCE`)],
           abilities: [],
         },
         {
@@ -272,16 +294,16 @@ class GameMapScene extends Phaser.Scene {
           hp: sc(22,6), pow: sc(14,2.5), mag: 0,          sp: sc(14,1.5),
           lck: sc(7,0.5), def: sc(4,1),  mdef: sc(3,0.5), move: 5,
           moveCosts: CLASSES.VAGABOND.moveCosts,
-          weapons: [makeWeapon(`${tier}_SWORD`)],
+          weapons: [makeWeapon(`${bossTier}_SWORD`)],
           abilities: ['hi_crit'],
         },
         {
           name: 'Archmage',     className: 'Necromancer',
           color: 0x7020c0, symbol: '♜',
-          hp: sc(20,5), pow: 2,           mag: sc(15,2.5), sp: sc(7,1),
+          hp: sc(20,5), pow: 2,           mag: sc(12,2),   sp: sc(7,1),
           lck: sc(5,0.5), def: sc(2,0.5), mdef: sc(10,1.5), move: 4,
           moveCosts: CLASSES.NECROMANCER.moveCosts,
-          weapons: [makeWeapon(`${tier}_TOME`)],
+          weapons: [makeWeapon(`${bossTier}_TOME`)],
           abilities: [],
         },
         {
@@ -290,7 +312,7 @@ class GameMapScene extends Phaser.Scene {
           hp: sc(24,6), pow: sc(13,2),  mag: 0,           sp: sc(10,1),
           lck: sc(6,0.5), def: sc(6,1), mdef: sc(4,0.5),  move: 6,
           moveCosts: CLASSES.FLETCHER.moveCosts,
-          weapons: [makeWeapon(`${tier}_SWORD`)],
+          weapons: [makeWeapon(`${bossTier}_SWORD`)],
           abilities: [],
         },
       ];
@@ -298,6 +320,7 @@ class GameMapScene extends Phaser.Scene {
       this.units.push(new Unit({
         ...bt, faction: FACTION.ENEMY, isBoss: true,
         gx: this.thronePos.x, gy: this.thronePos.y,
+        level: floor + 2,
       }));
     }
 
@@ -313,8 +336,8 @@ class GameMapScene extends Phaser.Scene {
           const vUnit = new Unit({
             name: 'Guy', className: 'Vagabond', faction: FACTION.NEUTRAL,
             gx: vx, gy: vy,
-            hp: sc(14,2), pow: sc(9,1.5), mag: 0, sp: sc(10,1),
-            lck: sc(5,0.5), def: sc(4,0.5), mdef: sc(2,0.5), move: 5,
+            hp: sc(17,2), pow: sc(11,1.5), mag: 0, sp: sc(11,1),
+            lck: sc(6,0.5), def: sc(5,0.5), mdef: sc(3,0.5), move: 5,
             level: Math.max(1, floor),
             growths: vagGrowths,
             moveCosts: CLASSES.VAGABOND.moveCosts,
@@ -1074,7 +1097,7 @@ class GameMapScene extends Phaser.Scene {
     if (hitCount > 1)  logLine += ` ×${hitCount}`;
     if (lifeHeal > 0)  logLine += ` [+${lifeHeal}HP]`;
 
-    // On-hit weapon effects (burn / poison)
+    // On-hit weapon effects
     if (aw && aw.effect) {
       const fx = aw.effect;
       if (fx.type === 'burn' && !defender.hasStatus('burn') && Math.random() * 100 < fx.chance) {
@@ -1083,6 +1106,12 @@ class GameMapScene extends Phaser.Scene {
       } else if (fx.type === 'poison' && !defender.hasStatus('poison') && Math.random() * 100 < fx.chance) {
         defender.addStatus('poison');
         logLine += ' [POISON]';
+      } else if (fx.type === 'freeze' && !defender.hasStatus('freeze') && Math.random() * 100 < fx.chance) {
+        defender.addStatus('freeze');
+        logLine += ' [FREEZE]';
+      } else if (fx.type === 'paralyze' && !defender.hasStatus('paralyze') && Math.random() * 100 < fx.chance) {
+        defender.addStatus('paralyze');
+        logLine += ' [PARA]';
       }
     }
 
@@ -1168,6 +1197,7 @@ class GameMapScene extends Phaser.Scene {
             level: lord.level, xp:    lord.xp || 0,
             weapons:     lord.weapons.map(w => ({ ...w })),
             equippedIdx: lord.weapons.indexOf(lord.equippedWeapon),
+            abilities:   [...(lord.abilities || [])],
           };
         }
         // Save surviving allies (dead ones are simply omitted so they don't respawn)
@@ -1236,6 +1266,16 @@ class GameMapScene extends Phaser.Scene {
   }
 
   _enemyAct(eu) {
+    if (eu.hasStatus('freeze')) {
+      if (Math.random() < 0.4) {
+        eu.statusEffects = eu.statusEffects.filter(s => s.type !== 'freeze');
+        this.battleLog = [`${eu.name} thawed out!`];
+        this.logT = 1500;
+      } else {
+        return;
+      }
+    }
+
     const [euMinR, euMaxR] = this._weaponRange(eu);
 
     // Find nearest player unit
@@ -1261,7 +1301,7 @@ class GameMapScene extends Phaser.Scene {
     for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
       const nx = eu.gx + dx, ny = eu.gy + dy;
       if (nx < 0 || nx >= MAP_W || ny < 0 || ny >= MAP_H) continue;
-      if (MOVE_COST[this.grid[ny][nx]] >= 99) continue;
+      if (eu.moveCosts[this.grid[ny][nx]] >= 99) continue;
       if (this._unitAt(nx, ny)) continue;
       const d = Math.abs(nx - target.gx) + Math.abs(ny - target.gy);
       const gap = Math.abs(d - euMinR);
@@ -1909,19 +1949,31 @@ class GameMapScene extends Phaser.Scene {
   //  HELPERS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  // Apply poison DoT to all living units of the given faction; show in battle log.
+  // Apply status effects at the start of a faction's phase.
   _tickStatusEffects(faction) {
     const msgs = [];
     this.units.filter(u => u.faction === faction && u.alive).forEach(u => {
       const dmg = u.tickPoison();
       if (dmg > 0) msgs.push(`${u.name}: ${dmg} poison`);
+
+      // Freeze: 40% chance to thaw at the start of the unit's phase.
+      // For player units, set moved=true if still frozen so they can't act.
+      if (faction === FACTION.PLAYER && u.hasStatus('freeze')) {
+        if (Math.random() < 0.4) {
+          u.statusEffects = u.statusEffects.filter(s => s.type !== 'freeze');
+          msgs.push(`${u.name} thawed out!`);
+        } else {
+          u.moved = true;
+          msgs.push(`${u.name} is frozen!`);
+        }
+      }
     });
     if (msgs.length > 0) {
       this.battleLog = msgs.slice(0, 2);
       this.logT = 1500;
-      this._removeDead();
-      this._checkEndCondition();
     }
+    this._removeDead();
+    this._checkEndCondition();
   }
 
   _unitAt(x, y) {

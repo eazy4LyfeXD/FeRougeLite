@@ -73,9 +73,9 @@ const CLASSES = {
     abilities: ['mounted', 'bow_range'],
   },
   RUFFIAN: {
-    name: 'Ruffian', weapons: ['axe', 'sword'],
-    moveCosts: CLASS_MOVE_COSTS.RUFFIAN, mounted: false, flying: false,
-    abilities: ['sea_legs'],
+    name: 'Ruffian', weapons: ['axe'],
+    moveCosts: CLASS_MOVE_COSTS.NORMAL, mounted: false, flying: false,
+    abilities: ['hi_crit'],
   },
   NECROMANCER: {
     name: 'Necromancer', weapons: ['wicked_magic', 'staff'],
@@ -193,8 +193,38 @@ const WEAPON_DATA = {
   // ── Generic tomes (for enemy Necromancers — no special effects) ─────────────
   WOOD_TOME:   { name: 'Wood Tome',   type: 'tome', tier: 'wood',   isMagic: true, might: 2, hit: 90, crit: 0, uses: 35, maxUses: 35, range: [1,2], desc: 'A crude magic tome.' },
   BRONZE_TOME: { name: 'Bronze Tome', type: 'tome', tier: 'bronze', isMagic: true, might: 5, hit: 85, crit: 0, uses: 25, maxUses: 25, range: [1,2], desc: 'A reliable magic tome.' },
-  IRON_TOME:   { name: 'Iron Tome',   type: 'tome', tier: 'iron',   isMagic: true, might: 8, hit: 80, crit: 0, uses: 20, maxUses: 20, range: [1,2], desc: 'A heavy magic tome.' },
-  // ── Tomes & Dark Magic (isMagic — uses Moj stat for attack) ─────────────────
+  IRON_TOME:        { name: 'Iron Tome',        type: 'tome', tier: 'iron',        isMagic: true, might:  8, hit: 80, crit:  0, uses: 20, maxUses: 20, range: [1,2], desc: 'A heavy magic tome.' },
+  // ── Steel tier ───────────────────────────────────────────────────────────────
+  STEEL_SWORD:      { name: 'Steel Sword',      type: 'sword', tier: 'steel',                  might:  8, hit: 85, crit:  0, uses: 18, maxUses: 18, range: [1,1], desc: 'A finely forged steel blade.' },
+  STEEL_LANCE:      { name: 'Steel Lance',      type: 'lance', tier: 'steel',                  might:  9, hit: 75, crit:  0, uses: 18, maxUses: 18, range: [1,1], desc: 'A tempered steel spear.' },
+  STEEL_AXE:        { name: 'Steel Axe',        type: 'axe',   tier: 'steel',                  might: 10, hit: 65, crit:  0, uses: 18, maxUses: 18, range: [1,1], desc: 'A heavy steel axe.' },
+  STEEL_BOW:        { name: 'Steel Bow',        type: 'bow',   tier: 'steel',                  might:  8, hit: 80, crit:  0, uses: 18, maxUses: 18, range: [2,2], desc: 'A powerful steel bow.' },
+  STEEL_TOME:       { name: 'Steel Tome',       type: 'tome',  tier: 'steel',  isMagic: true,  might: 11, hit: 80, crit:  0, uses: 18, maxUses: 18, range: [1,2], desc: 'A reinforced magic tome.' },
+  // ── Ivory tier ───────────────────────────────────────────────────────────────
+  IVORY_SWORD:      { name: 'Ivory Sword',      type: 'sword', tier: 'ivory',                  might: 10, hit: 80, crit:  0, uses: 15, maxUses: 15, range: [1,1], desc: 'A blade carved from ancient ivory.' },
+  IVORY_LANCE:      { name: 'Ivory Lance',      type: 'lance', tier: 'ivory',                  might: 11, hit: 70, crit:  0, uses: 15, maxUses: 15, range: [1,1], desc: 'A pale, razor-sharp lance.' },
+  IVORY_AXE:        { name: 'Ivory Axe',        type: 'axe',   tier: 'ivory',                  might: 12, hit: 60, crit:  0, uses: 15, maxUses: 15, range: [1,1], desc: 'A massive ivory-tipped axe.' },
+  IVORY_BOW:        { name: 'Ivory Bow',        type: 'bow',   tier: 'ivory',                  might: 10, hit: 75, crit:  0, uses: 15, maxUses: 15, range: [2,2], desc: 'An ornate ivory bow.' },
+  IVORY_TOME:       { name: 'Ivory Tome',       type: 'tome',  tier: 'ivory',  isMagic: true,  might: 14, hit: 75, crit:  0, uses: 15, maxUses: 15, range: [1,2], desc: 'A tome bound in ivory.' },
+  // ── Dragonscale tier ─────────────────────────────────────────────────────────
+  DRAGONSCALE_SWORD:{ name: 'Dragonscale Sword',type: 'sword', tier: 'dragonscale',             might: 12, hit: 75, crit:  0, uses: 12, maxUses: 12, range: [1,1], desc: 'Forged with dragonscale, cuts through armour.' },
+  DRAGONSCALE_LANCE:{ name: 'Dragonscale Lance',type: 'lance', tier: 'dragonscale',             might: 13, hit: 65, crit:  0, uses: 12, maxUses: 12, range: [1,1], desc: 'A terrifying lance of dragon origin.' },
+  DRAGONSCALE_AXE:  { name: 'Dragonscale Axe',  type: 'axe',   tier: 'dragonscale',             might: 14, hit: 55, crit:  0, uses: 12, maxUses: 12, range: [1,1], desc: 'Devastating dragonscale axe.' },
+  DRAGONSCALE_BOW:  { name: 'Dragonscale Bow',  type: 'bow',   tier: 'dragonscale',             might: 12, hit: 70, crit:  0, uses: 12, maxUses: 12, range: [2,2], desc: 'A bow strung with dragon sinew.' },
+  DRAGONSCALE_TOME: { name: 'Dragonscale Tome', type: 'tome',  tier: 'dragonscale',isMagic: true,might:17, hit: 70, crit:  0, uses: 12, maxUses: 12, range: [1,2], desc: 'Ancient magic etched in dragonscale.' },
+  // ── Gold tier (1.5× Steel might, 3 uses — burst damage) ──────────────────────
+  GOLD_SWORD:       { name: 'Gold Sword',       type: 'sword', tier: 'gold',                   might: 12, hit: 85, crit:  5, uses:  3, maxUses:  3, range: [1,1], desc: 'Gleaming. Cuts deep, fades fast.' },
+  GOLD_LANCE:       { name: 'Gold Lance',       type: 'lance', tier: 'gold',                   might: 13, hit: 75, crit:  5, uses:  3, maxUses:  3, range: [1,1], desc: 'A golden lance that strikes true.' },
+  GOLD_AXE:         { name: 'Gold Axe',         type: 'axe',   tier: 'gold',                   might: 15, hit: 65, crit:  5, uses:  3, maxUses:  3, range: [1,1], desc: 'Heavy gold — enormous damage.' },
+  GOLD_BOW:         { name: 'Gold Bow',         type: 'bow',   tier: 'gold',                   might: 12, hit: 80, crit:  5, uses:  3, maxUses:  3, range: [2,2], desc: 'A golden bow of unerring accuracy.' },
+  GOLD_TOME:        { name: 'Gold Tome',        type: 'tome',  tier: 'gold',   isMagic: true,  might: 16, hit: 80, crit:  5, uses:  3, maxUses:  3, range: [1,2], desc: 'Forbidden knowledge, three castings only.' },
+  // ── Pearl tier (1.5× Dragonscale might, 1 use — single decisive strike) ──────
+  PEARL_SWORD:      { name: 'Pearl Sword',      type: 'sword', tier: 'pearl',                  might: 18, hit: 75, crit: 10, uses:  1, maxUses:  1, range: [1,1], desc: 'One perfect strike.' },
+  PEARL_LANCE:      { name: 'Pearl Lance',      type: 'lance', tier: 'pearl',                  might: 19, hit: 65, crit: 10, uses:  1, maxUses:  1, range: [1,1], desc: 'One thrust that ends battles.' },
+  PEARL_AXE:        { name: 'Pearl Axe',        type: 'axe',   tier: 'pearl',                  might: 21, hit: 55, crit: 10, uses:  1, maxUses:  1, range: [1,1], desc: 'Annihilating. One use.' },
+  PEARL_BOW:        { name: 'Pearl Bow',        type: 'bow',   tier: 'pearl',                  might: 18, hit: 70, crit: 10, uses:  1, maxUses:  1, range: [2,2], desc: 'A single arrow that never misses its mark.' },
+  PEARL_TOME:       { name: 'Pearl Tome',       type: 'tome',  tier: 'pearl',  isMagic: true,  might: 25, hit: 70, crit: 10, uses:  1, maxUses:  1, range: [1,2], desc: 'Absolute magic. One casting only.' },
+  // ── Tomes & Dark Magic (isMagic — uses Mag stat for attack) ──────────────────
   FLAME:   { name: 'Flame',   type: 'tome', tier: 'bronze', isMagic: true, might:  5, hit: 85, crit: 5, uses: 20, maxUses: 20, range: [1,2], effect: { type: 'burn',   chance: 40  }, desc: 'Fire tome. Burns on hit.' },
   SMITE:   { name: 'Smite',   type: 'tome', tier: 'bronze', isMagic: true, might: 25, hit: 70, crit: 0, uses:  3, maxUses:  3, range: [1,2],                                           desc: 'Holy wrath. 3 uses only.' },
   DROUGHT: { name: 'Drought', type: 'dark', tier: 'wood',   isMagic: true, might:  2, hit: 85, crit: 0, uses: 25, maxUses: 25, range: [1,2], effect: { type: 'poison', chance: 100 }, desc: 'Dark curse. Poisons on hit.' },
@@ -202,6 +232,24 @@ const WEAPON_DATA = {
   HEAL: { name: 'Heal', type: 'staff', tier: 'bronze', isStaff: true, might: 0, hit: 100, crit: 0, uses: 5, maxUses: 5, range: [1,1], healAmount: 10, desc: 'Restores HP to an ally.' },
   // ── Consumable items ─────────────────────────────────────────────────────────
   HEALING_POTION: { name: 'Healing Potion', type: 'consumable', tier: 'basic', isConsumable: true, uses: 3, maxUses: 3, healAmount: 10, desc: 'Restores 10 HP to the user.' },
+  // ── Elemental weapons ─────────────────────────────────────────────────────────
+  // Iron-tier might, 15 uses, 35% chance to inflict status on hit.
+  BLAZE_SWORD:  { name: 'Blaze Sword',  type: 'sword', tier: 'iron', might: 5, hit: 80, crit: 0, uses: 15, maxUses: 15, range: [1,1], effect: { type: 'burn',     chance: 35 }, desc: 'Burns on hit (35%). Halves target Pow.' },
+  BLAZE_LANCE:  { name: 'Blaze Lance',  type: 'lance', tier: 'iron', might: 6, hit: 70, crit: 0, uses: 15, maxUses: 15, range: [1,1], effect: { type: 'burn',     chance: 35 }, desc: 'Burns on hit (35%). Halves target Pow.' },
+  BLAZE_AXE:    { name: 'Blaze Axe',    type: 'axe',   tier: 'iron', might: 7, hit: 60, crit: 0, uses: 15, maxUses: 15, range: [1,1], effect: { type: 'burn',     chance: 35 }, desc: 'Burns on hit (35%). Halves target Pow.' },
+  BLAZE_BOW:    { name: 'Blaze Bow',    type: 'bow',   tier: 'iron', might: 5, hit: 75, crit: 0, uses: 15, maxUses: 15, range: [2,2], effect: { type: 'burn',     chance: 35 }, desc: 'Burns on hit (35%). Halves target Pow.' },
+  FROST_SWORD:  { name: 'Frost Sword',  type: 'sword', tier: 'iron', might: 5, hit: 80, crit: 0, uses: 15, maxUses: 15, range: [1,1], effect: { type: 'freeze',   chance: 35 }, desc: 'Freezes on hit (35%). Immobilizes; 40% thaw per turn.' },
+  FROST_LANCE:  { name: 'Frost Lance',  type: 'lance', tier: 'iron', might: 6, hit: 70, crit: 0, uses: 15, maxUses: 15, range: [1,1], effect: { type: 'freeze',   chance: 35 }, desc: 'Freezes on hit (35%). Immobilizes; 40% thaw per turn.' },
+  FROST_AXE:    { name: 'Frost Axe',    type: 'axe',   tier: 'iron', might: 7, hit: 60, crit: 0, uses: 15, maxUses: 15, range: [1,1], effect: { type: 'freeze',   chance: 35 }, desc: 'Freezes on hit (35%). Immobilizes; 40% thaw per turn.' },
+  FROST_BOW:    { name: 'Frost Bow',    type: 'bow',   tier: 'iron', might: 5, hit: 75, crit: 0, uses: 15, maxUses: 15, range: [2,2], effect: { type: 'freeze',   chance: 35 }, desc: 'Freezes on hit (35%). Immobilizes; 40% thaw per turn.' },
+  POISON_SWORD: { name: 'Poison Sword', type: 'sword', tier: 'iron', might: 5, hit: 80, crit: 0, uses: 15, maxUses: 15, range: [1,1], effect: { type: 'poison',   chance: 35 }, desc: 'Poisons on hit (35%). 15% max HP per turn.' },
+  POISON_LANCE: { name: 'Poison Lance', type: 'lance', tier: 'iron', might: 6, hit: 70, crit: 0, uses: 15, maxUses: 15, range: [1,1], effect: { type: 'poison',   chance: 35 }, desc: 'Poisons on hit (35%). 15% max HP per turn.' },
+  POISON_AXE:   { name: 'Poison Axe',   type: 'axe',   tier: 'iron', might: 7, hit: 60, crit: 0, uses: 15, maxUses: 15, range: [1,1], effect: { type: 'poison',   chance: 35 }, desc: 'Poisons on hit (35%). 15% max HP per turn.' },
+  POISON_BOW:   { name: 'Poison Bow',   type: 'bow',   tier: 'iron', might: 5, hit: 75, crit: 0, uses: 15, maxUses: 15, range: [2,2], effect: { type: 'poison',   chance: 35 }, desc: 'Poisons on hit (35%). 15% max HP per turn.' },
+  SPARK_SWORD:  { name: 'Spark Sword',  type: 'sword', tier: 'iron', might: 5, hit: 80, crit: 0, uses: 15, maxUses: 15, range: [1,1], effect: { type: 'paralyze', chance: 35 }, desc: 'Paralyzes on hit (35%). Halves target Spd.' },
+  SPARK_LANCE:  { name: 'Spark Lance',  type: 'lance', tier: 'iron', might: 6, hit: 70, crit: 0, uses: 15, maxUses: 15, range: [1,1], effect: { type: 'paralyze', chance: 35 }, desc: 'Paralyzes on hit (35%). Halves target Spd.' },
+  SPARK_AXE:    { name: 'Spark Axe',    type: 'axe',   tier: 'iron', might: 7, hit: 60, crit: 0, uses: 15, maxUses: 15, range: [1,1], effect: { type: 'paralyze', chance: 35 }, desc: 'Paralyzes on hit (35%). Halves target Spd.' },
+  SPARK_BOW:    { name: 'Spark Bow',    type: 'bow',   tier: 'iron', might: 5, hit: 75, crit: 0, uses: 15, maxUses: 15, range: [2,2], effect: { type: 'paralyze', chance: 35 }, desc: 'Paralyzes on hit (35%). Halves target Spd.' },
   // ── Special lord weapons ─────────────────────────────────────────────────────
   SERPENTS_BONE: { name: "Serpent's Bone", type: 'sword', tier: 'special', might:  6, hit: 85, crit: 5, uses: 15, maxUses: 15, range: [1,1], effect: { type: 'execute',   charges: 1 },                              desc: 'Stolen from a dead god.' },
   PIERCER:       { name: 'Piercer',        type: 'lance', tier: 'special', might:  5, hit: 80, crit: 0, uses: 20, maxUses: 20, range: [1,1], effect: { type: 'effective', vsClass: 'Bulwark', multiplier: 3 },        desc: 'Forged to crack plate armor.' },
