@@ -16,8 +16,6 @@ class FloorRewardScene extends Phaser.Scene {
     { id: 'full_heal',            label: 'Full Heal',        desc: 'Fully restore the lord\'s HP.'                                        },
     { id: 'level_up',             label: 'Level Up',         desc: 'Gain one level. Stat bonuses roll immediately.'                       },
     { id: 'duplicate',            label: 'Duplicate Item',   desc: 'Select one item to receive a full-uses copy.'                         },
-    { id: 'recruit_young',        label: 'Recruit: Rookie',  desc: 'A Grunt or Clergy joins — high potential, low bases.'                 },
-    { id: 'recruit_veteran',      label: 'Recruit: Veteran', desc: 'A Bulwark or Fletcher joins — high bases, slow growth.'               },
     { id: 'weapon_blaze',         label: 'Blaze Weapon',     desc: 'Receive a Blaze weapon. Burns on hit (35%): halves target Pow.'       },
     { id: 'weapon_frost',         label: 'Frost Weapon',     desc: 'Receive a Frost weapon. Freezes on hit (35%): immobilizes target.'    },
     { id: 'weapon_poison',        label: 'Poison Weapon',    desc: 'Receive a Poison weapon. Poisons on hit (35%): 15% max HP per turn.'  },
@@ -28,52 +26,81 @@ class FloorRewardScene extends Phaser.Scene {
     { id: 'ability_double_spark', label: 'Double Spark',     desc: 'Give a unit Double Spark. Their Spark weapons deal 2× might.'         },
   ];
 
-  // ── Recruitable unit templates ────────────────────────────────────────────────
-  static YOUNG_RECRUITS = [
+  // ── All recruitable unit templates (used for pre-chapter offer) ─────────────
+  static RECRUIT_POOL = [
+    // ── Rookies (level 1) ──────────────────────────────────────────────────────
     {
       name: 'Grunt', className: 'Grunt', color: 0x4080b0, symbol: '♙',
       level: 1,
       stats:   { hp: 14, pow: 5,  mag: 0, sp: 4, lck: 3, def: 5,  mdef: 2, move: 4 },
       growths: { hp: 80, pow: 65, mag: 0, sp: 55, lck: 45, def: 70, mdef: 20 },
-      weapons: ['WOOD_LANCE', 'HEALING_POTION'],
+      weapons:   ['WOOD_LANCE', 'HEALING_POTION'],
+      abilities: [],
     },
     {
       name: 'Clergy', className: 'Clergy', color: 0xc0a030, symbol: '♗',
       level: 1,
       stats:   { hp: 11, pow: 2,  mag: 9, sp: 5, lck: 7, def: 2,  mdef: 8, move: 5 },
       growths: { hp: 55, pow: 5,  mag: 90, sp: 65, lck: 75, def: 10, mdef: 85 },
-      weapons: ['WOOD_TOME', 'HEAL', 'HEALING_POTION'],
+      weapons:   ['WOOD_TOME', 'HEAL', 'HEALING_POTION'],
+      abilities: [],
     },
     {
       name: 'Ruffian', className: 'Ruffian', color: 0xb05030, symbol: '♕',
       level: 1,
       stats:   { hp: 19, pow: 8,  mag: 0, sp: 4, lck: 3, def: 5,  mdef: 2, move: 4 },
       growths: { hp: 90, pow: 70, mag: 0, sp: 35, lck: 30, def: 45, mdef: 15 },
-      weapons: ['WOOD_AXE', 'HEALING_POTION'],
+      weapons:   ['WOOD_AXE', 'HEALING_POTION'],
+      abilities: ['hi_crit'],
     },
-  ];
-
-  static VETERAN_RECRUITS = [
+    {
+      name: 'Vagabond', className: 'Vagabond', color: 0xe0a020, symbol: '†',
+      level: 1,
+      stats:   { hp: 12, pow: 7,  mag: 0, sp: 7, lck: 4, def: 3,  mdef: 2, move: 5 },
+      growths: { hp: 55, pow: 75, mag: 0, sp: 80, lck: 50, def: 30, mdef: 20 },
+      weapons:   ['WOOD_SWORD', 'HEALING_POTION'],
+      abilities: ['hi_crit'],
+    },
+    // ── Veterans (level 5–7) ───────────────────────────────────────────────────
     {
       name: 'Bulwark', className: 'Bulwark', color: 0x607060, symbol: '♖',
       level: 7,
       stats:   { hp: 38, pow: 15, mag: 1, sp: 4,  lck: 6, def: 18, mdef: 6, move: 4 },
       growths: { hp: 50, pow: 30, mag: 5, sp: 15, lck: 20, def: 45, mdef: 10 },
-      weapons: ['BRONZE_LANCE', 'HEALING_POTION'],
+      weapons:   ['BRONZE_LANCE', 'HEALING_POTION'],
+      abilities: [],
     },
     {
       name: 'Fletcher', className: 'Fletcher', color: 0x50a090, symbol: '♘',
       level: 7,
       stats:   { hp: 28, pow: 13, mag: 0, sp: 10, lck: 7, def: 7,  mdef: 4, move: 6 },
       growths: { hp: 35, pow: 30, mag: 0, sp: 25, lck: 30, def: 20, mdef: 10 },
-      weapons: ['BRONZE_SWORD', 'BRONZE_BOW', 'HEALING_POTION'],
+      weapons:   ['BRONZE_SWORD', 'BRONZE_BOW', 'HEALING_POTION'],
+      abilities: [],
     },
     {
-      name: 'Ruffian', className: 'Ruffian', color: 0xb05030, symbol: '♕',
-      level: 7,
-      stats:   { hp: 46, pow: 18, mag: 0, sp: 7,  lck: 5, def: 10, mdef: 4, move: 4 },
-      growths: { hp: 90, pow: 70, mag: 0, sp: 35, lck: 30, def: 45, mdef: 15 },
-      weapons: ['BRONZE_AXE', 'HEALING_POTION'],
+      name: 'Defender', className: 'Defender', color: 0x4060a0, symbol: '♘',
+      level: 5,
+      stats:   { hp: 28, pow: 14, mag: 0, sp: 9, lck: 6, def: 8,  mdef: 3, move: 5 },
+      growths: { hp: 65, pow: 70, mag: 0, sp: 65, lck: 45, def: 40, mdef: 15 },
+      weapons:   ['BRONZE_SWORD', 'BRONZE_AXE', 'HEALING_POTION'],
+      abilities: ['hi_crit', 'lifesteal'],
+    },
+    {
+      name: 'Specialist', className: 'Specialist', color: 0x306060, symbol: '♝',
+      level: 5,
+      stats:   { hp: 22, pow: 10, mag: 0, sp: 8, lck: 7, def: 5,  mdef: 4, move: 5 },
+      growths: { hp: 55, pow: 60, mag: 0, sp: 75, lck: 55, def: 25, mdef: 20 },
+      weapons:   ['BRONZE_LANCE', 'BRONZE_BOW', 'HEALING_POTION'],
+      abilities: ['reach', 'versatile'],
+    },
+    {
+      name: 'Dragoon Knight', className: 'Dragoon Knight', color: 0x505080, symbol: '♜',
+      level: 6,
+      stats:   { hp: 32, pow: 13, mag: 0, sp: 6, lck: 5, def: 10, mdef: 4, move: 6 },
+      growths: { hp: 75, pow: 60, mag: 0, sp: 40, lck: 30, def: 55, mdef: 20 },
+      weapons:   ['BRONZE_LANCE', 'BRONZE_AXE', 'HEALING_POTION'],
+      abilities: ['flight', 'bow_weakness', 'magic_weakness', 'dragon_scales'],
     },
   ];
 
@@ -82,11 +109,14 @@ class FloorRewardScene extends Phaser.Scene {
     this.cursor           = 0;
     this.itemCursor       = 0;
     this.weaponPickCursor = 0;
-    this.pendingElement   = null;   // 'blaze' | 'frost' | 'poison' | 'spark'
-    this.weaponPickList   = [];     // [{name, className, level, isLord, allyIdx}]
+    this.pendingElement   = null;
+    this.weaponPickList   = [];
     this.abilityPickCursor = 0;
-    this.pendingAbilityId  = null;  // 'double_blaze' | 'double_frost' | ...
-    this.abilityPickList   = [];    // [{name, className, level, isLord, allyIdx}]
+    this.pendingAbilityId  = null;
+    this.abilityPickList   = [];
+    this.recruitOfferDone  = false;
+    this.pendingRecruit    = null;
+    this.recruitCursor     = 0;    // 0 = YES, 1 = NO
     this.lordUnit          = this._buildLordUnit();
     this.upgrades          = this._pickUpgrades(3);
 
@@ -148,13 +178,11 @@ class FloorRewardScene extends Phaser.Scene {
   // elemental weapon options excluded if no party member uses any physical weapon.
   _pickUpgrades(n) {
     const hasItems    = (this.saveData.playerStats?.weapons || []).length > 0;
-    const afterFloor1 = this.saveData.currentLevel === 2;
     const anyPhysical = this._buildWeaponPickList().length > 0;
 
     const pool = FloorRewardScene.POOL.filter(u => {
-      if (u.id === 'duplicate'                                      && !hasItems)    return false;
-      if ((u.id === 'recruit_young' || u.id === 'recruit_veteran') && !afterFloor1) return false;
-      if (u.id.startsWith('weapon_')                               && !anyPhysical) return false;
+      if (u.id === 'duplicate'          && !hasItems)    return false;
+      if (u.id.startsWith('weapon_')    && !anyPhysical) return false;
       return true;
     });
     const shuffled = pool.slice().sort(() => Math.random() - 0.5);
@@ -193,12 +221,20 @@ class FloorRewardScene extends Phaser.Scene {
     );
 
     // Shared party-pick overlay — used by both weapon-pick and ability-pick.
-    // lord + up to 6 allies = 7 rows max.
+    // lord + up to 14 allies = 15 rows max.
     this.txtPartyPickHeader = this.add.text(0, 0, '', f(22, C.TITLE))
       .setDepth(4).setVisible(false);
-    this.txtPartyPickItems = Array.from({ length: 7 }, () =>
+    this.txtPartyPickItems = Array.from({ length: 15 }, () =>
       this.add.text(0, 0, '', f(20, C.TEXT)).setDepth(4).setVisible(false)
     );
+
+    // Recruit offer overlay
+    this.txtRecruitTitle   = this.add.text(0, 0, '', f(32, C.TITLE)).setDepth(5).setVisible(false);
+    this.txtRecruitName    = this.add.text(0, 0, '', f(24, C.TEXT)).setDepth(5).setVisible(false);
+    this.txtRecruitStats   = this.add.text(0, 0, '', f(20, C.DIM)).setDepth(5).setVisible(false);
+    this.txtRecruitWeapons = this.add.text(0, 0, '', f(20, C.DIM)).setDepth(5).setVisible(false);
+    this.txtRecruitOptions = this.add.text(0, 0, '', f(28, C.TEXT)).setDepth(5).setVisible(false);
+    this.txtRecruitHint    = this.add.text(0, 0, '', f(18, C.DIM)).setDepth(5).setVisible(false);
   }
 
   // ── Main loop ─────────────────────────────────────────────────────────────────
@@ -247,6 +283,18 @@ class FloorRewardScene extends Phaser.Scene {
       if (jd(this.keys.cancel)  || jd(this.keys.esc))   this.gameState = 'select';
     }
 
+    if (this.gameState === 'recruit-offer') {
+      if (jd(this.keys.up)   || jd(this.keys.w))    this.recruitCursor = 0;
+      if (jd(this.keys.down) || jd(this.keys.s))    this.recruitCursor = 1;
+      if (jd(this.keys.confirm) || jd(this.keys.enter)) {
+        if (this.recruitCursor === 0) {
+          this._addAllyToSave(this.pendingRecruit);
+          this._saveLordStats();
+        }
+        this._fadeToGameMap();
+      }
+    }
+
     this._render();
   }
 
@@ -281,22 +329,6 @@ class FloorRewardScene extends Phaser.Scene {
         this.itemCursor = 0;
         this.gameState  = 'item-pick';
         break;
-
-      case 'recruit_young': {
-        const pool = FloorRewardScene.YOUNG_RECRUITS;
-        this._addAllyToSave(pool[Math.floor(Math.random() * pool.length)]);
-        this._saveLordStats();
-        this._fadeToGameMap();
-        break;
-      }
-
-      case 'recruit_veteran': {
-        const pool = FloorRewardScene.VETERAN_RECRUITS;
-        this._addAllyToSave(pool[Math.floor(Math.random() * pool.length)]);
-        this._saveLordStats();
-        this._fadeToGameMap();
-        break;
-      }
 
       case 'weapon_blaze':
       case 'weapon_frost':
@@ -486,7 +518,7 @@ class FloorRewardScene extends Phaser.Scene {
       growths:     { ...template.growths },
       weapons:     weapons.map(w => ({ ...w })),
       equippedIdx: Math.max(0, weapons.findIndex(w => !w.isStaff && !w.isConsumable)),
-      abilities:   [],
+      abilities:   template.abilities ? [...template.abilities] : [],
     });
   }
 
@@ -509,11 +541,24 @@ class FloorRewardScene extends Phaser.Scene {
   }
 
   _fadeToGameMap() {
+    const allyCount = (this.saveData.allies || []).length;
+    if (!this.recruitOfferDone && RECRUIT_FLOORS.has(this.saveData.currentLevel) && allyCount < 14) {
+      this._enterRecruitOffer();
+      return;
+    }
     this.gameState = 'transitioning';
     this.cameras.main.fadeOut(300, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {
       this.scene.start('GameMap', { saveData: this.saveData, slotIndex: this.slotIndex });
     });
+  }
+
+  _enterRecruitOffer() {
+    this.recruitOfferDone = true;
+    const pool = FloorRewardScene.RECRUIT_POOL;
+    this.pendingRecruit   = pool[Math.floor(Math.random() * pool.length)];
+    this.recruitCursor    = 0;
+    this.gameState        = 'recruit-offer';
   }
 
   // ── Rendering ─────────────────────────────────────────────────────────────────
@@ -541,6 +586,65 @@ class FloorRewardScene extends Phaser.Scene {
       this.txtPartyPickHeader.setVisible(false);
       this.txtPartyPickItems.forEach(t => t.setVisible(false));
     }
+
+    if (this.gameState === 'recruit-offer') {
+      this._renderRecruitOffer(g);
+    } else {
+      this.txtRecruitTitle.setVisible(false);
+      this.txtRecruitName.setVisible(false);
+      this.txtRecruitStats.setVisible(false);
+      this.txtRecruitWeapons.setVisible(false);
+      this.txtRecruitOptions.setVisible(false);
+      this.txtRecruitHint.setVisible(false);
+    }
+  }
+
+  _renderRecruitOffer(g) {
+    const r    = this.pendingRecruit;
+    const panW = 600, panH = 320;
+    const panX = (GAME_W - panW) / 2;
+    const panY = (GAME_H - panH) / 2;
+
+    g.fillStyle(C.PANEL_BG, 0.98);
+    g.fillRect(panX, panY, panW, panH);
+    g.lineStyle(3, C.SEL_BD, 1);
+    g.strokeRect(panX, panY, panW, panH);
+    g.fillStyle(C.SEL_BD, 1);
+    g.fillRect(panX, panY, panW, 6);
+
+    const s = r.stats;
+    const wNames = r.weapons.map(k => WEAPON_DATA[k]?.name || k).join('  ·  ');
+
+    this.txtRecruitTitle
+      .setText('NEW RECRUIT')
+      .setPosition(panX + panW / 2, panY + 28).setOrigin(0.5)
+      .setVisible(true);
+
+    this.txtRecruitName
+      .setText(`${r.name}   ·   ${r.className}   Lv.${r.level}`)
+      .setPosition(panX + panW / 2, panY + 72).setOrigin(0.5)
+      .setVisible(true);
+
+    this.txtRecruitStats
+      .setText(`HP ${s.hp}   Pow ${s.pow}   Spd ${s.sp}   Def ${s.def}   MDef ${s.mdef}   Move ${s.move}`)
+      .setPosition(panX + panW / 2, panY + 118).setOrigin(0.5)
+      .setVisible(true);
+
+    this.txtRecruitWeapons
+      .setText(`Weapons: ${wNames}`)
+      .setPosition(panX + panW / 2, panY + 158).setOrigin(0.5)
+      .setVisible(true);
+
+    this.txtRecruitOptions
+      .setText(`${this.recruitCursor === 0 ? '▶ ' : '   '}YES        ${this.recruitCursor === 1 ? '▶ ' : '   '}NO`)
+      .setPosition(panX + panW / 2, panY + 224).setOrigin(0.5)
+      .setColor(C.TEXT)
+      .setVisible(true);
+
+    this.txtRecruitHint
+      .setText('W/S: choose   X / Enter: confirm')
+      .setPosition(panX + panW / 2, panY + 282).setOrigin(0.5)
+      .setVisible(true);
   }
 
   _renderCards(g) {

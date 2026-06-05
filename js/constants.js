@@ -4,7 +4,14 @@
 const GAME_W = 960;
 const GAME_H = 640;
 
-const MAX_FLOORS = 5;   // total floors in a run
+const MAX_FLOORS = 30;  // total floors in a run
+
+// Floors that present a guaranteed recruit offer before the map loads.
+// 14 opportunities total — lord + 14 = 15 max units.
+const RECRUIT_FLOORS = new Set([2, 3, 4, 6, 8, 11, 13, 16, 18, 21, 23, 26, 28, 29]);
+// Floor type helpers (used throughout the game)
+const isCastleFloor = f => f % 5 === 0;          // floors 5,10,15,20,25,30
+const isBossFloor   = f => f % 10 === 0;          // floors 10,20,30 (structure reserved)
 
 // Tile types
 const TILE = {
@@ -17,9 +24,11 @@ const TILE = {
   THRONE:   6,
   WATER:    7,
   ROAD:     8,
+  DOOR:     9,   // locked door — impassable until opened with a key or lockpick
+  CHEST:    10,  // treasure chest — interact from adjacent tile
 };
 
-const TILE_NAME = ['Plain','Forest','Mountain','Wall','Fort','Village','Throne','Water','Road'];
+const TILE_NAME = ['Plain','Forest','Mountain','Wall','Fort','Village','Throne','Water','Road','Door','Chest'];
 
 // Pixel colours for each tile (fill, shade/edge)
 const TILE_COLOR = [
@@ -32,22 +41,25 @@ const TILE_COLOR = [
   { fill: 0x9a3a9a, shade: 0x6a1a6a }, // THRONE
   { fill: 0x2a4a8a, shade: 0x1a3060 }, // WATER
   { fill: 0x8a7a5a, shade: 0x6a5a3a }, // ROAD
+  { fill: 0x6a3a18, shade: 0x4a2208 }, // DOOR
+  { fill: 0xb08020, shade: 0x806010 }, // CHEST
 ];
 
-const TILE_ICON = ['', '♣', '▲', '▪', '□', '⌂', '♛', '~', ''];
+const TILE_ICON = ['', '♣', '▲', '▪', '□', '⌂', '♛', '~', '', '▬', '⊞'];
 
 // Movement cost per tile type (99 = impassable)
-// Index order: Plain, Forest, Mountain, Wall, Fort, Village, Throne, Water, Road
-const MOVE_COST = [1, 2, 3, 99, 1, 1, 1, 99, 1];
+// Index: Plain Forest Mountain Wall Fort Village Throne Water Road Door Chest
+const MOVE_COST = [1, 2, 3, 99, 1, 1, 1, 99, 1, 99, 99];
 
-// Per-class movement cost overrides (same index order as MOVE_COST)
-// Index: Plain, Forest, Mountain, Wall, Fort, Village, Throne, Water, Road
+// Per-class movement cost overrides
+// Index: Plain Forest Mountain Wall Fort Village Throne Water Road Door Chest
 const CLASS_MOVE_COSTS = {
-  PICKPOCKET:    [1, 1, 1, 99, 1, 1, 1, 99, 1], // no terrain penalty whatsoever
-  NORMAL:        [1, 2, 3, 99, 1, 1, 1, 99, 1], // standard infantry costs
-  CAVALRY:       [1, 3, 4, 99, 2, 1, 1, 99, 1], // horse: Forest+1, Mountain+1, Fort+1
-  RUFFIAN:       [1, 2, 3, 99, 1, 1, 1,  2, 1], // can traverse water (cost 2)
-  ALICORN:       [1, 1, 1, 99, 1, 1, 1,  1, 1], // flying: all terrain cost 1, walls still block
+  PICKPOCKET: [1, 1, 1, 99, 1, 1, 1, 99, 1, 99, 99],
+  NORMAL:     [1, 2, 3, 99, 1, 1, 1, 99, 1, 99, 99],
+  CAVALRY:    [1, 3, 4, 99, 2, 1, 1, 99, 1, 99, 99],
+  RUFFIAN:    [1, 2, 3, 99, 1, 1, 1,  2, 1, 99, 99],
+  ALICORN:    [1, 1, 1, 99, 1, 1, 1,  1, 1, 99, 99],
+  DRAGON:     [1, 1, 2, 99, 1, 1, 1,  1, 1, 99, 99],
 };
 
 // Full class definitions — weapons, movement, abilities, and role
@@ -123,10 +135,25 @@ const CLASSES = {
     moveCosts: CLASS_MOVE_COSTS.ALICORN, mounted: true, flying: true,
     abilities: ['flight', 'bow_weakness'],
   },
+  DRAGOON_KNIGHT: {
+    name: 'Dragoon Knight', weapons: ['axe', 'lance'],
+    moveCosts: CLASS_MOVE_COSTS.DRAGON, mounted: true, flying: true,
+    abilities: ['flight', 'bow_weakness', 'magic_weakness', 'dragon_scales'],
+  },
+  DEFENDER: {
+    name: 'Defender', weapons: ['axe', 'sword'],
+    moveCosts: CLASS_MOVE_COSTS.NORMAL, mounted: false, flying: false,
+    abilities: ['hi_crit', 'lifesteal'],
+  },
+  SPECIALIST: {
+    name: 'Specialist', weapons: ['lance', 'bow'],
+    moveCosts: CLASS_MOVE_COSTS.NORMAL, mounted: false, flying: false,
+    abilities: ['reach', 'versatile'],
+  },
 };
 
-// Defence bonus per tile type
-const TILE_DEF  = [0, 1, 2, 0, 2, 1, 3, 0, 0];
+// Defence bonus per tile type (index matches TILE values)
+const TILE_DEF  = [0, 1, 2, 0, 2, 1, 3, 0, 0, 0, 0];
 
 // Map dimensions
 const MAP_W  = 15;
@@ -232,6 +259,9 @@ const WEAPON_DATA = {
   HEAL: { name: 'Heal', type: 'staff', tier: 'bronze', isStaff: true, might: 0, hit: 100, crit: 0, uses: 5, maxUses: 5, range: [1,1], healAmount: 10, desc: 'Restores HP to an ally.' },
   // ── Consumable items ─────────────────────────────────────────────────────────
   HEALING_POTION: { name: 'Healing Potion', type: 'consumable', tier: 'basic', isConsumable: true, uses: 3, maxUses: 3, healAmount: 10, desc: 'Restores 10 HP to the user.' },
+  // ── Castle keys (castle floors only) ─────────────────────────────────────────
+  DOOR_KEY:  { name: 'Door Key',  type: 'key', tier: 'basic', isKey: true, keyType: 'door',  uses: 1, maxUses: 1, desc: 'Opens one locked door.' },
+  CHEST_KEY: { name: 'Chest Key', type: 'key', tier: 'basic', isKey: true, keyType: 'chest', uses: 2, maxUses: 2, desc: 'Opens up to 2 chests.' },
   // ── Elemental weapons ─────────────────────────────────────────────────────────
   // Iron-tier might, 15 uses, 35% chance to inflict status on hit.
   BLAZE_SWORD:  { name: 'Blaze Sword',  type: 'sword', tier: 'iron', might: 5, hit: 80, crit: 0, uses: 15, maxUses: 15, range: [1,1], effect: { type: 'burn',     chance: 35 }, desc: 'Burns on hit (35%). Halves target Pow.' },
@@ -273,7 +303,7 @@ const LORD_DEFS = [
     stats:   { hp: 20, pow: 8,  mag: 2,  sp: 7, lck: 5, def: 5, mdef: 4, move: 5 },
     growths: { hp: 80, pow: 70, mag: 10, sp: 75, lck: 55, def: 55, mdef: 35 },
     moveCosts: CLASS_MOVE_COSTS.PICKPOCKET,
-    startingWeapons: ['SERPENTS_BONE', 'HEALING_POTION'],
+    startingWeapons: ['SERPENTS_BONE', 'HEALING_POTION', 'HEALING_POTION'],
   },
   {
     label: 'LORD II', className: 'Astronomer', color: 0x6a3a9a, light: '#b080f0',
@@ -281,7 +311,7 @@ const LORD_DEFS = [
     stats:   { hp: 17, pow: 3,  mag: 11, sp: 7, lck: 6, def: 3, mdef: 8, move: 5 },
     growths: { hp: 65, pow: 10, mag: 90, sp: 65, lck: 60, def: 15, mdef: 85 },
     moveCosts: CLASS_MOVE_COSTS.NORMAL,
-    startingWeapons: ['FLAME', 'SMITE', 'DROUGHT', 'HEAL', 'HEALING_POTION'],
+    startingWeapons: ['FLAME', 'SMITE', 'DROUGHT', 'HEAL', 'HEALING_POTION', 'HEALING_POTION'],
   },
   {
     label: 'LORD III', className: 'Stud Master', color: 0x3a8a50, light: '#80d090',
@@ -289,6 +319,6 @@ const LORD_DEFS = [
     stats:   { hp: 22, pow: 10, mag: 1,  sp: 6, lck: 4, def: 8, mdef: 3, move: 7 },
     growths: { hp: 90, pow: 75, mag: 5,  sp: 50, lck: 40, def: 75, mdef: 20 },
     moveCosts: CLASS_MOVE_COSTS.CAVALRY,
-    startingWeapons: ['SWIFT_BLADE', 'PIERCER', 'HEALING_POTION'],
+    startingWeapons: ['SWIFT_BLADE', 'PIERCER', 'HEALING_POTION', 'HEALING_POTION'],
   },
 ];

@@ -129,6 +129,11 @@ class Unit {
     const might    = (w ? w.might : 0) * (boostKey && this.abilities.includes(boostKey) ? 2 : 1);
     let dmg = Math.max(1, (atkStat + might) - defStat);
 
+    // Dragoon Knight passive: takes 1.5× damage from magic attacks
+    if (isMagic && defender.abilities.includes('magic_weakness')) {
+      dmg = Math.floor(dmg * 1.5);
+    }
+
     // Weapon type-effectiveness multiplier (Piercer vs Bulwark, Swift Blade vs axe)
     if (w && w.effect && w.effect.type === 'effective') {
       const fx = w.effect;

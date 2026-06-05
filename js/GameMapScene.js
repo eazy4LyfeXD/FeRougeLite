@@ -10,11 +10,18 @@ class GameMapScene extends Phaser.Scene {
 
   // ═══════════════════════════════════════════════════════════════════════════
   create() {
-    // Generate map
-    const { grid, thronePos, rng } = MapGen.generate(this.saveData.mapSeed);
-    this.grid      = grid;
-    this.thronePos = thronePos;
-    this.mapRng    = rng;
+    const floor      = this.saveData.currentLevel;
+    const castle     = isCastleFloor(floor);
+    // Generate map — castle floors use the structured castle generator
+    const mapResult  = castle
+      ? MapGen.generateCastle(this.saveData.mapSeed)
+      : MapGen.generate(this.saveData.mapSeed);
+    const { grid, thronePos, rng } = mapResult;
+    this.castleRooms = mapResult.rooms || [];
+    this.chestLoot   = new Map();
+    this.grid        = grid;
+    this.thronePos   = thronePos;
+    this.mapRng      = rng;
 
     // Game state
     this.units         = [];
@@ -112,7 +119,7 @@ class GameMapScene extends Phaser.Scene {
     const midY  = Math.floor(MAP_H / 2);
     const ld    = LORD_DEFS[this.saveData.selectedLord];
     const floor = this.saveData.currentLevel;    // 1–MAX_FLOORS
-    const fMod  = floor - 1;                     // 0 on floor 1, 4 on floor 5
+    const fMod  = floor - 1;                     // 0 on floor 1, 29 on floor 30
 
     // ── Lord ─────────────────────────────────────────────────────────────────
     // Always create from base stats; saved state is layered on top below.
@@ -153,15 +160,18 @@ class GameMapScene extends Phaser.Scene {
       }
       if (ps.abilities && ps.abilities.length > 0)
         lord.abilities = [...ps.abilities];
-      // 50 % HP restoration at the start of each new floor
-      lord.hp = Math.min(lord.maxHp, lord.hp + Math.floor(lord.maxHp / 2));
+      // Full HP restoration at the start of each new floor
+      lord.hp = lord.maxHp;
     }
 
     // ── Allies (recruited in previous floors) ────────────────────────────────
     const allySpots = [
       { x: 1, y: midY + 1 }, { x: 1, y: midY - 1 },
-      { x: 2, y: midY },     { x: 2, y: midY + 1 },
-      { x: 2, y: midY - 1 }, { x: 3, y: midY },
+      { x: 2, y: midY },     { x: 2, y: midY + 1 }, { x: 2, y: midY - 1 },
+      { x: 1, y: midY + 2 }, { x: 1, y: midY - 2 },
+      { x: 3, y: midY },     { x: 3, y: midY + 1 }, { x: 3, y: midY - 1 },
+      { x: 2, y: midY + 2 }, { x: 2, y: midY - 2 },
+      { x: 3, y: midY + 2 }, { x: 3, y: midY - 2 },
     ];
     let spotIdx = 0;
     for (const ad of (this.saveData.allies || [])) {
@@ -202,43 +212,44 @@ class GameMapScene extends Phaser.Scene {
       this.units.push(ally);
     }
 
-    // ── Enemies (scaled by floor) ────────────────────────────────────────────
-    const sc   = (base, perFloor) => base + Math.round(fMod * perFloor);
-    // Unit weapons:  Wood (fl 1-3) → Bronze (fl 4-5)
-    const tier     = floor >= 4 ? 'BRONZE' : 'WOOD';
-    // Boss weapons:  Wood (fl 1) → Bronze (fl 2-3) → Iron (fl 4-5)
-    const bossTier = floor >= 4 ? 'IRON' : floor >= 2 ? 'BRONZE' : 'WOOD';
+    // ── Enemies (scaled across 30 floors) ───────────────────────────────────
+    const sc = (base, perFloor) => base + Math.round(fMod * perFloor);
+    // Weapon tiers advance every 5 floors: Wood→Bronze→Iron→Steel→Ivory→Dragonscale
+    const TIERS    = ['WOOD','BRONZE','IRON','STEEL','IVORY','DRAGONSCALE'];
+    const tierIdx  = Math.min(5, Math.floor((floor - 1) / 5));
+    const tier     = TIERS[tierIdx];
+    const bossTier = tier;
 
     const eTypes = [
       {
-        name: 'Grunt',       className: 'Grunt',
+        name: 'Grunt',         className: 'Grunt',
         color: 0xc04040, symbol: '♟',
-        hp: sc(14,3), pow: sc(7,1),   mag: 0,        sp: sc(4,0.5),
-        lck: 2,        def: sc(4,1),  mdef: sc(2,0.5), move: 4,
+        hp: sc(10,0.70), pow: sc(4,0.25), mag: 0,          sp: sc(3,0.10),
+        lck: 2,           def: sc(2,0.20), mdef: sc(1,0.10), move: 4,
         moveCosts: CLASSES.GRUNT.moveCosts,
         weapons: [makeWeapon(`${tier}_LANCE`)],
       },
       {
-        name: 'Fletcher',    className: 'Fletcher',
+        name: 'Fletcher',      className: 'Fletcher',
         color: 0xc07030, symbol: '♝',
-        hp: sc(12,3), pow: sc(8,1),   mag: 0,        sp: sc(6,0.5),
-        lck: 3,        def: sc(2,1),  mdef: sc(1,0.5), move: 6,
+        hp: sc(9,0.60),  pow: sc(5,0.25), mag: 0,          sp: sc(4,0.10),
+        lck: 3,           def: sc(2,0.15), mdef: sc(1,0.10), move: 6,
         moveCosts: CLASSES.FLETCHER.moveCosts,
         weapons: [makeWeapon(`${tier}_SWORD`)],
       },
       {
-        name: 'Necromancer', className: 'Necromancer',
+        name: 'Necromancer',   className: 'Necromancer',
         color: 0x9030c0, symbol: '♜',
-        hp: sc(10,3), pow: 2,          mag: sc(7,1),  sp: sc(5,0.5),
-        lck: 4,        def: sc(1,1),   mdef: sc(5,0.5), move: 5,
+        hp: sc(8,0.60),  pow: 2,           mag: sc(4,0.25), sp: sc(3,0.10),
+        lck: 4,           def: sc(1,0.12), mdef: sc(3,0.15), move: 5,
         moveCosts: CLASSES.NECROMANCER.moveCosts,
         weapons: [makeWeapon(`${tier}_TOME`)],
       },
       {
-        name: 'Vagabond',    className: 'Vagabond',
+        name: 'Vagabond',      className: 'Vagabond',
         color: 0xe08020, symbol: '†',
-        hp: sc(10,2.5), pow: sc(8,1), mag: 0,          sp: sc(9,1),
-        lck: sc(4,0.5), def: sc(3,0.5), mdef: sc(2,0.5), move: 5,
+        hp: sc(8,0.50),  pow: sc(5,0.25), mag: 0,           sp: sc(6,0.25),
+        lck: sc(3,0.10), def: sc(2,0.10), mdef: sc(1,0.10), move: 5,
         moveCosts: CLASSES.VAGABOND.moveCosts,
         abilities: ['hi_crit'],
         weapons: [makeWeapon(`${tier}_SWORD`)],
@@ -246,25 +257,29 @@ class GameMapScene extends Phaser.Scene {
       {
         name: 'Alicorn Rider', className: 'Alicorn Rider',
         color: 0x50b0d0, symbol: '♦',
-        hp: sc(12,2.5), pow: sc(7,1), mag: 0,           sp: sc(7,1),
-        lck: 4,          def: sc(3,0.5), mdef: sc(4,0.5), move: 7,
+        hp: sc(9,0.50),  pow: sc(4,0.25), mag: 0,           sp: sc(4,0.25),
+        lck: 4,           def: sc(2,0.10), mdef: sc(2,0.12), move: 7,
         moveCosts: CLASSES.ALICORN_RIDER.moveCosts,
         abilities: ['bow_weakness', 'flight'],
         weapons: [makeWeapon(`${tier}_LANCE`)],
       },
       {
-        name: 'Ruffian',      className: 'Ruffian',
+        name: 'Ruffian',       className: 'Ruffian',
         color: 0xa05020, symbol: '✠',
-        hp: sc(17,3.5), pow: sc(9,1.5), mag: 0,          sp: sc(3,0.5),
-        lck: 2,          def: sc(3,0.5), mdef: sc(2,0.5), move: 4,
+        hp: sc(13,0.80), pow: sc(6,0.35), mag: 0,           sp: sc(2,0.08),
+        lck: 2,           def: sc(2,0.10), mdef: sc(1,0.08), move: 4,
         moveCosts: CLASSES.RUFFIAN.moveCosts,
         abilities: ['hi_crit'],
         weapons: [makeWeapon(`${tier}_AXE`)],
       },
     ];
+    // Scales from 2-3 on floor 1 to ~49-50 on floor 30.
+    // Formula: (floor+1) + quadratic booster floor²/50
+    const enemyBase  = floor + 1 + Math.floor(floor * floor / 50);
+    const enemyCount = enemyBase + this.mapRng.int(0, 1);
     const usedPos = new Set();
     let attempts = 0;
-    while (usedPos.size < 6 && attempts < 300) {
+    while (usedPos.size < enemyCount && attempts < 300) {
       attempts++;
       const ex = this.mapRng.int(Math.floor(MAP_W/2)+1, MAP_W-1);
       const ey = this.mapRng.int(1, MAP_H-2);
@@ -282,8 +297,8 @@ class GameMapScene extends Phaser.Scene {
         {
           name: 'General',      className: 'Bulwark',
           color: 0xe030e0, symbol: '♚',
-          hp: sc(30,8), pow: sc(12,2), mag: 2,           sp: sc(4,0.5),
-          lck: 5,        def: sc(7,2), mdef: sc(4,0.5),  move: 3,
+          hp: sc(22,1.50), pow: sc(9,0.50), mag: 2,             sp: sc(3,0.12),
+          lck: 5,           def: sc(5,0.40), mdef: sc(3,0.10),  move: 3,
           moveCosts: CLASSES.BULWARK.moveCosts,
           weapons: [makeWeapon(`${bossTier}_LANCE`)],
           abilities: [],
@@ -291,8 +306,8 @@ class GameMapScene extends Phaser.Scene {
         {
           name: 'Blade Master', className: 'Vagabond',
           color: 0xff6020, symbol: '✦',
-          hp: sc(22,6), pow: sc(14,2.5), mag: 0,          sp: sc(14,1.5),
-          lck: sc(7,0.5), def: sc(4,1),  mdef: sc(3,0.5), move: 5,
+          hp: sc(16,1.20), pow: sc(10,0.60), mag: 0,            sp: sc(10,0.40),
+          lck: sc(6,0.20), def: sc(3,0.20),  mdef: sc(2,0.10), move: 5,
           moveCosts: CLASSES.VAGABOND.moveCosts,
           weapons: [makeWeapon(`${bossTier}_SWORD`)],
           abilities: ['hi_crit'],
@@ -300,8 +315,8 @@ class GameMapScene extends Phaser.Scene {
         {
           name: 'Archmage',     className: 'Necromancer',
           color: 0x7020c0, symbol: '♜',
-          hp: sc(20,5), pow: 2,           mag: sc(12,2),   sp: sc(7,1),
-          lck: sc(5,0.5), def: sc(2,0.5), mdef: sc(10,1.5), move: 4,
+          hp: sc(15,1.00), pow: 2,            mag: sc(9,0.50),  sp: sc(5,0.20),
+          lck: sc(4,0.15), def: sc(1,0.10),   mdef: sc(7,0.40), move: 4,
           moveCosts: CLASSES.NECROMANCER.moveCosts,
           weapons: [makeWeapon(`${bossTier}_TOME`)],
           abilities: [],
@@ -309,8 +324,8 @@ class GameMapScene extends Phaser.Scene {
         {
           name: 'Warlord',      className: 'Fletcher',
           color: 0xd08000, symbol: '♞',
-          hp: sc(24,6), pow: sc(13,2),  mag: 0,           sp: sc(10,1),
-          lck: sc(6,0.5), def: sc(6,1), mdef: sc(4,0.5),  move: 6,
+          hp: sc(18,1.20), pow: sc(9,0.50),  mag: 0,            sp: sc(7,0.25),
+          lck: sc(5,0.15), def: sc(4,0.20),  mdef: sc(3,0.10), move: 6,
           moveCosts: CLASSES.FLETCHER.moveCosts,
           weapons: [makeWeapon(`${bossTier}_SWORD`)],
           abilities: [],
@@ -324,31 +339,101 @@ class GameMapScene extends Phaser.Scene {
       }));
     }
 
-    // ── Recruitable Vagabond (33 % chance per floor) ──────────────────────────
-    if (Math.random() < 0.33) {
-      const vagGrowths = { hp: 55, pow: 75, mag: 0, sp: 80, lck: 50, def: 30, mdef: 20 };
-      let vattempts = 0;
-      while (vattempts < 150) {
-        vattempts++;
-        const vx = Math.floor(Math.random() * (MAP_W - 4)) + 2;
-        const vy = Math.floor(Math.random() * (MAP_H - 2)) + 1;
-        if (this._tilePassable(vx, vy) && !this._unitAt(vx, vy)) {
-          const vUnit = new Unit({
-            name: 'Guy', className: 'Vagabond', faction: FACTION.NEUTRAL,
-            gx: vx, gy: vy,
-            hp: sc(17,2), pow: sc(11,1.5), mag: 0, sp: sc(11,1),
-            lck: sc(6,0.5), def: sc(5,0.5), mdef: sc(3,0.5), move: 5,
-            level: Math.max(1, floor),
-            growths: vagGrowths,
-            moveCosts: CLASSES.VAGABOND.moveCosts,
-            color: 0xe0a020, symbol: '†', abilities: ['hi_crit'],
-            weapons: [makeWeapon(`${tier}_SWORD`), makeWeapon('HEALING_POTION')],
-          });
-          vUnit.isRecruitable = true;
-          this.units.push(vUnit);
-          break;
+    // ── Castle floors: spawn door guards and chest room guards ────────────────
+    if (isCastleFloor(floor)) this._spawnCastleGuards(tier);
+
+  }
+
+  // ── Castle-specific guard spawning ───────────────────────────────────────────
+  // Each room gets one door guard (adjacent to door, carries DOOR_KEY) and
+  // one chest guard inside the room (carries CHEST_KEY, opens 2 chests).
+  _spawnCastleGuards(tier) {
+    const floor = this.saveData.currentLevel;
+    const fMod  = floor - 1;
+    const sc    = (base, pp) => base + Math.round(fMod * pp);
+    const TIERS = ['WOOD','BRONZE','IRON','STEEL','IVORY','DRAGONSCALE'];
+    const guardTypes = [
+      { name:'Gate Guard', className:'Grunt',   color:0xb03030, symbol:'♟',
+        hp:sc(11,0.70), pow:sc(5,0.25), sp:sc(3,0.10), def:sc(2,0.20), mdef:sc(1,0.10), move:4,
+        moveCosts:CLASSES.GRUNT.moveCosts, weapons:[makeWeapon(`${tier}_LANCE`)] },
+      { name:'Ruffian',    className:'Ruffian', color:0xa05020, symbol:'✠',
+        hp:sc(14,0.80), pow:sc(6,0.35), sp:sc(2,0.08), def:sc(2,0.10), mdef:sc(1,0.08), move:4,
+        moveCosts:CLASSES.RUFFIAN.moveCosts, abilities:['hi_crit'], weapons:[makeWeapon(`${tier}_AXE`)] },
+    ];
+
+    for (const room of this.castleRooms) {
+      // Seed the chest loot for every chest in this room
+      for (const ch of room.chests) {
+        this.chestLoot.set(`${ch.x},${ch.y}`, this._rollChestLoot(floor));
+      }
+
+      // Door guard — spawn on the corridor tile adjacent to the door
+      const corridorY = this.grid[room.doorY - 1]?.[room.doorX] === TILE.PLAIN
+        ? room.doorY - 1
+        : room.doorY + 1;
+      const doorGuardPos = this._findNearbyPassable(room.doorX, corridorY);
+      if (doorGuardPos) {
+        const tpl = this.mapRng.pick(guardTypes);
+        const guard = new Unit({
+          ...tpl, faction: FACTION.ENEMY,
+          gx: doorGuardPos.x, gy: doorGuardPos.y,
+          level: floor, mag: 0, lck: 2,
+          weapons: [...tpl.weapons, makeWeapon('DOOR_KEY')],
+          abilities: tpl.abilities ? [...tpl.abilities] : [],
+        });
+        this.units.push(guard);
+      }
+
+      // Chest guard — spawn inside the room on any plain tile
+      const chestGuardPos = this._findNearbyPassable(room.doorX, room.doorY > 5 ? room.doorY + 2 : room.doorY - 2);
+      if (chestGuardPos) {
+        const tpl = this.mapRng.pick(guardTypes);
+        const guard = new Unit({
+          ...tpl, faction: FACTION.ENEMY,
+          gx: chestGuardPos.x, gy: chestGuardPos.y,
+          level: floor, mag: 0, lck: 2,
+          weapons: [...tpl.weapons, makeWeapon('CHEST_KEY')],
+          abilities: tpl.abilities ? [...tpl.abilities] : [],
+        });
+        this.units.push(guard);
+      }
+    }
+  }
+
+  // Find the nearest passable unoccupied tile within 3 steps of (x,y)
+  _findNearbyPassable(x, y) {
+    for (let r = 0; r <= 3; r++) {
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.abs(dx) + Math.abs(dy) !== r) continue;
+          const nx = x + dx, ny = y + dy;
+          if (this._tilePassable(nx, ny) && !this._unitAt(nx, ny))
+            return { x: nx, y: ny };
         }
       }
+    }
+    return null;
+  }
+
+  // Generate a random loot item appropriate to the current floor
+  _rollChestLoot(floor) {
+    const TIERS  = ['WOOD','BRONZE','IRON','STEEL','IVORY','DRAGONSCALE'];
+    const tier   = TIERS[Math.min(5, Math.floor((floor - 1) / 5))];
+    const types  = ['SWORD','LANCE','AXE','BOW'];
+    const elems  = ['BLAZE','FROST','POISON','SPARK'];
+    const roll   = Math.random();
+    if (roll < 0.25) {
+      // Elemental weapon
+      return makeWeapon(`${this.mapRng.pick(elems)}_${this.mapRng.pick(types)}`);
+    } else if (roll < 0.55) {
+      // Tier weapon
+      return makeWeapon(`${tier}_${this.mapRng.pick(types)}`);
+    } else if (roll < 0.75) {
+      return makeWeapon('HEALING_POTION');
+    } else {
+      // Higher-tier weapon as bonus
+      const bonusTier = TIERS[Math.min(5, Math.floor((floor - 1) / 5) + 1)];
+      return makeWeapon(`${bonusTier}_${this.mapRng.pick(types)}`);
     }
   }
 
@@ -606,30 +691,49 @@ class GameMapScene extends Phaser.Scene {
     const inRange = u =>
       u.faction === FACTION.ENEMY && u.alive && this.attackRange.has(`${u.gx},${u.gy}`);
     const hasTarget  = this.units.some(inRange);
-    // EXECUTE: unit has a charged execute weapon AND a non-boss enemy is reachable
     const hasExecute = this._hasExecuteCharge() &&
                        this.units.some(u => inRange(u) && !u.isBoss);
-    // STEAL: Pickpocket only — adjacent enemy must carry at least one item
     const hasSteal   = this.selectedUnit?.className === 'Pickpocket' &&
                        this._getStealableTargets().length > 0;
-    // TALK: lord only — adjacent neutral recruitable unit
     const hasTalk     = this.selectedUnit?.isLord && this._getTalkTarget() !== null;
-    // CONVERSE: lord only — attempt to recruit an adjacent non-boss enemy
     const hasConverse = this.selectedUnit?.isLord &&
                         this.units.some(u => u.faction === FACTION.ENEMY && u.alive &&
                                              !u.isBoss && this.attackRange.has(`${u.gx},${u.gy}`));
     const hasItems    = (this.selectedUnit?.weapons || []).length > 0;
+    const hasOpenDoor = this._adjacentCastleTile(TILE.DOOR)  !== null && this._hasKeyOrPick('door');
+    const hasOpenChest= this._adjacentCastleTile(TILE.CHEST) !== null && this._hasKeyOrPick('chest');
     this.menuOptions = [
-      ...(hasTarget   ? ['ATTACK']   : []),
-      ...(hasExecute  ? ['EXECUTE']  : []),
-      ...(hasSteal    ? ['STEAL']    : []),
-      ...(hasTalk     ? ['TALK']     : []),
-      ...(hasConverse ? ['CONVERSE'] : []),
-      ...(hasItems    ? ['ITEMS']    : []),
+      ...(hasTarget    ? ['ATTACK']    : []),
+      ...(hasExecute   ? ['EXECUTE']   : []),
+      ...(hasSteal     ? ['STEAL']     : []),
+      ...(hasTalk      ? ['TALK']      : []),
+      ...(hasConverse  ? ['CONVERSE']  : []),
+      ...(hasOpenDoor  ? ['OPEN DOOR'] : []),
+      ...(hasOpenChest ? ['OPEN CHEST']: []),
+      ...(hasItems     ? ['ITEMS']     : []),
       'WAIT',
     ];
     this.menuCursor = 0;
     this.gameState  = 'menu';
+  }
+
+  // Returns the position of the first adjacent tile of the given type, or null
+  _adjacentCastleTile(tileType) {
+    if (!this.selectedUnit) return null;
+    for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+      const nx = this.selectedUnit.gx + dx, ny = this.selectedUnit.gy + dy;
+      if (nx >= 0 && nx < MAP_W && ny >= 0 && ny < MAP_H && this.grid[ny][nx] === tileType)
+        return { x: nx, y: ny };
+    }
+    return null;
+  }
+
+  // True if the unit can open a door or chest (has matching key item, or has lockpick)
+  _hasKeyOrPick(keyType) {
+    const u = this.selectedUnit;
+    if (!u) return false;
+    if (u.abilities?.includes('lockpick')) return true;
+    return (u.weapons || []).some(w => w.isKey && w.keyType === keyType && w.uses > 0);
   }
 
   // True if any weapon in inventory carries an unconsumed execute charge
@@ -657,6 +761,10 @@ class GameMapScene extends Phaser.Scene {
       this._doTalk();
     } else if (opt === 'CONVERSE') {
       this._enterConverse();
+    } else if (opt === 'OPEN DOOR') {
+      this._doOpenDoor();
+    } else if (opt === 'OPEN CHEST') {
+      this._doOpenChest();
     } else if (opt === 'ITEMS') {
       this.invCursor = 0;
       this.gameState = 'items';
@@ -664,6 +772,49 @@ class GameMapScene extends Phaser.Scene {
       // WAIT
       this.selectedUnit.moved = true;
       this._resetSelection();
+    }
+  }
+
+  // ── Castle interaction ────────────────────────────────────────────────────────
+  _doOpenDoor() {
+    const pos = this._adjacentCastleTile(TILE.DOOR);
+    if (!pos) return;
+    this.grid[pos.y][pos.x] = TILE.PLAIN;
+    this._consumeKey('door');
+    this.battleLog = [`${this.selectedUnit.name} opened the door!`];
+    this.logT = 2000;
+    this._finalizeAction(this.selectedUnit);
+  }
+
+  _doOpenChest() {
+    const pos = this._adjacentCastleTile(TILE.CHEST);
+    if (!pos) return;
+    const loot = this.chestLoot.get(`${pos.x},${pos.y}`);
+    this.grid[pos.y][pos.x] = TILE.PLAIN;
+    this.chestLoot.delete(`${pos.x},${pos.y}`);
+    this._consumeKey('chest');
+    if (loot) {
+      this.selectedUnit.weapons.push(loot);
+      this.battleLog = [`${this.selectedUnit.name} found ${loot.name}!`];
+    } else {
+      this.battleLog = [`${this.selectedUnit.name} opened an empty chest.`];
+    }
+    this.logT = 2000;
+    this._finalizeAction(this.selectedUnit);
+  }
+
+  // Consume one use of the relevant key (door or chest). Lockpick skips consumption.
+  _consumeKey(keyType) {
+    if (this.selectedUnit?.abilities?.includes('lockpick')) return;
+    const key = (this.selectedUnit?.weapons || []).find(
+      w => w.isKey && w.keyType === keyType && w.uses > 0
+    );
+    if (!key) return;
+    key.uses--;
+    if (key.uses <= 0) {
+      this.selectedUnit.weapons = this.selectedUnit.weapons.filter(w => w !== key);
+      if (this.selectedUnit.equippedWeapon === key)
+        this.selectedUnit.equippedWeapon = this.selectedUnit.weapons.find(w => !w.isStaff && !w.isConsumable) || null;
     }
   }
 
@@ -1369,16 +1520,10 @@ class GameMapScene extends Phaser.Scene {
     ];
     this._fcTexts.forEach(t => t.setVisible(false));
 
-    // Action menu (up to 7 options: ATTACK, EXECUTE, STEAL, TALK, CONVERSE, ITEMS, WAIT)
-    this.txtMenuItems = [
-      this.add.text(0, 0, '', s(22, C.TEXT)).setDepth(6),
-      this.add.text(0, 0, '', s(22, C.TEXT)).setDepth(6),
-      this.add.text(0, 0, '', s(22, C.TEXT)).setDepth(6),
-      this.add.text(0, 0, '', s(22, C.TEXT)).setDepth(6),
-      this.add.text(0, 0, '', s(22, C.TEXT)).setDepth(6),
-      this.add.text(0, 0, '', s(22, C.TEXT)).setDepth(6),
-      this.add.text(0, 0, '', s(22, C.TEXT)).setDepth(6),
-    ];
+    // Action menu (up to 9 options: ATTACK EXECUTE STEAL TALK CONVERSE OPEN_DOOR OPEN_CHEST ITEMS WAIT)
+    this.txtMenuItems = Array.from({ length: 9 }, () =>
+      this.add.text(0, 0, '', s(22, C.TEXT)).setDepth(6)
+    );
     this.txtMenuItems.forEach(t => t.setVisible(false));
 
     // Weapon-select panel (full-width bar above HUD)
@@ -1486,6 +1631,24 @@ class GameMapScene extends Phaser.Scene {
         // Grid line
         g.lineStyle(1.5, 0x000000, 0.25);
         g.strokeRect(sx, sy, TILE_S, TILE_S);
+
+        // Door: dark cross bars
+        if (tile === TILE.DOOR) {
+          g.fillStyle(0x2a1408, 1);
+          g.fillRect(sx + TILE_S/2 - 3, sy + 4,  6, TILE_S - 8);
+          g.fillRect(sx + 4, sy + TILE_S/2 - 3,  TILE_S - 8, 6);
+          g.lineStyle(2, 0x000000, 0.7);
+          g.strokeRect(sx + 4, sy + 4, TILE_S - 8, TILE_S - 8);
+        }
+        // Chest: golden box with a lock dot
+        if (tile === TILE.CHEST) {
+          g.fillStyle(0x6a4010, 1);
+          g.fillRect(sx + 8, sy + 14, TILE_S - 16, TILE_S - 24);
+          g.fillStyle(0xd4a020, 1);
+          g.fillRect(sx + 8, sy + 14, TILE_S - 16, 10);
+          g.fillStyle(0x000000, 0.6);
+          g.fillRect(sx + TILE_S/2 - 4, sy + TILE_S/2 - 2, 8, 8);
+        }
       }
     }
   }
@@ -1904,6 +2067,10 @@ class GameMapScene extends Phaser.Scene {
         ? 'Select enemy to steal from  Z:back'
         : this.gameState === 'steal-pick'
         ? 'X:steal item  Z:back'
+        : this.gameState === 'menu' && this.menuOptions[this.menuCursor] === 'OPEN DOOR'
+        ? 'X:open door  Z:undo move'
+        : this.gameState === 'menu' && this.menuOptions[this.menuCursor] === 'OPEN CHEST'
+        ? 'X:open chest  Z:undo move'
         : this.gameState === 'menu'
         ? 'X:confirm  Z:undo move'
         : this.gameState === 'weapon-select'
@@ -1932,7 +2099,7 @@ class GameMapScene extends Phaser.Scene {
     if (this.phase === PHASE.VICTORY) {
       if (this.runComplete) {
         this.txtEndTitle.setText('CONQUERED!').setColor('#f0d060');
-        this.txtEndSub.setText('All 5 floors cleared!');
+        this.txtEndSub.setText(`All ${MAX_FLOORS} floors cleared!`);
       } else {
         this.txtEndTitle.setText('FLOOR CLEAR').setColor('#f0d060');
         this.txtEndSub.setText(`Advance to floor ${this.saveData.currentLevel}`);

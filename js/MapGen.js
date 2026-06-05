@@ -105,4 +105,95 @@ class MapGen {
 
     return { grid, thronePos, rng };
   }
+
+  // ── Castle floor generator ────────────────────────────────────────────────────
+  // Layout: stone walls everywhere; a main corridor through the middle; 2-3 side
+  // rooms each sealed by a DOOR tile; each room holds 2-4 CHEST tiles.
+  // Returns { grid, thronePos, rooms, rng }
+  // rooms: [{ doorX, doorY, chests:[{x,y}] }]
+  static generateCastle(seed) {
+    const rng  = new SeededRng(seed);
+    // Start with all walls
+    const grid = Array.from({ length: MAP_H }, () => new Array(MAP_W).fill(TILE.WALL));
+
+    const corridorTop = Math.floor(MAP_H / 2) - 1;  // rows 4-5 (0-indexed)
+    const corridorBot = corridorTop + 1;
+
+    // ── Main corridor (horizontal, cols 1..MAP_W-2) ───────────────────────────
+    for (let x = 1; x < MAP_W - 1; x++) {
+      grid[corridorTop][x] = TILE.PLAIN;
+      grid[corridorBot][x] = TILE.PLAIN;
+    }
+
+    // ── Player start area (cols 1-3, rows 1..MAP_H-2) ────────────────────────
+    for (let y = 1; y < MAP_H - 1; y++) {
+      grid[y][1] = TILE.PLAIN;
+      grid[y][2] = TILE.PLAIN;
+      grid[y][3] = TILE.PLAIN;
+    }
+
+    // ── Throne at far-right end of corridor ───────────────────────────────────
+    const throneX = MAP_W - 2;
+    const throneY = corridorTop;
+    grid[throneY][throneX] = TILE.THRONE;
+    grid[corridorBot][throneX] = TILE.PLAIN;
+
+    // ── Chest rooms ───────────────────────────────────────────────────────────
+    const numRooms = rng.int(2, 3);
+    const rooms    = [];
+
+    // Fixed x anchors spread across the corridor (excluding start + throne areas)
+    const anchors = [5, 8, 11].slice(0, numRooms);
+
+    for (const ax of anchors) {
+      // Room goes up or down from the corridor
+      const goesUp = rng.int(0, 1) === 0;
+
+      // Room bounds (3 wide, 3 tall)
+      const roomX1 = ax - 1, roomX2 = ax + 1;
+      const roomY1 = goesUp ? 1 : corridorBot + 2;
+      const roomY2 = goesUp ? corridorTop - 2 : MAP_H - 2;
+
+      // Carve the room interior
+      for (let ry = roomY1; ry <= roomY2; ry++) {
+        for (let rx = roomX1; rx <= roomX2; rx++) {
+          if (rx >= 1 && rx <= MAP_W - 2 && ry >= 1 && ry <= MAP_H - 2)
+            grid[ry][rx] = TILE.PLAIN;
+        }
+      }
+
+      // Carve connecting passage (one tile wide) between room and corridor
+      const passX  = ax;
+      const passY1 = goesUp ? roomY2 + 1 : corridorBot + 1;
+      const passY2 = goesUp ? corridorTop - 1 : roomY1 - 1;
+      for (let py = Math.min(passY1, passY2); py <= Math.max(passY1, passY2); py++) {
+        if (py >= 1 && py <= MAP_H - 2) grid[py][passX] = TILE.PLAIN;
+      }
+
+      // Place DOOR at the passage mouth (adjacent to corridor)
+      const doorY = goesUp ? corridorTop - 1 : corridorBot + 1;
+      if (doorY >= 1 && doorY <= MAP_H - 2) grid[doorY][passX] = TILE.DOOR;
+
+      // Place 2-4 CHESTs inside the room (not on the passage tile)
+      const numChests  = rng.int(2, 4);
+      const chests     = [];
+      let   attempts   = 0;
+      while (chests.length < numChests && attempts < 60) {
+        attempts++;
+        const cx = rng.int(roomX1, roomX2);
+        const cy = rng.int(roomY1, roomY2);
+        if (grid[cy][cx] === TILE.PLAIN && cx !== passX) {
+          grid[cy][cx] = TILE.CHEST;
+          chests.push({ x: cx, y: cy });
+        }
+      }
+
+      rooms.push({ doorX: passX, doorY, chests });
+    }
+
+    // ── Find throne position object ───────────────────────────────────────────
+    const thronePos = { x: throneX, y: throneY };
+
+    return { grid, thronePos, rooms, rng };
+  }
 }
