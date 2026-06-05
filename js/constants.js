@@ -316,8 +316,8 @@ const LORD_DEFS = [
   {
     label: 'LORD III', className: 'Stud Master', color: 0x3a8a50, light: '#80d090',
     desc: 'Mounted. High Pow and Move.',
-    stats:   { hp: 22, pow: 10, mag: 1,  sp: 6, lck: 4, def: 8, mdef: 3, move: 7 },
-    growths: { hp: 90, pow: 75, mag: 5,  sp: 50, lck: 40, def: 75, mdef: 20 },
+    stats:   { hp: 18, pow: 8,  mag: 1,  sp: 5, lck: 4, def: 6, mdef: 3, move: 7 },
+    growths: { hp: 95, pow: 85, mag: 5,  sp: 60, lck: 50, def: 85, mdef: 25 },
     moveCosts: CLASS_MOVE_COSTS.CAVALRY,
     startingWeapons: ['SWIFT_BLADE', 'PIERCER', 'HEALING_POTION', 'HEALING_POTION'],
   },

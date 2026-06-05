@@ -507,12 +507,6 @@ class GameMapScene extends Phaser.Scene {
                              this.attackRange.has(`${this.cursorX},${this.cursorY}`))
         ? t : null;
     }
-    if (this.gameState === 'converse') {
-      const t = this._unitAt(this.cursorX, this.cursorY);
-      this.forecastTarget = (t && t.faction === FACTION.ENEMY && !t.isBoss &&
-                             this.attackRange.has(`${this.cursorX},${this.cursorY}`))
-        ? t : null;
-    }
   }
 
   _moveCursor(dx, dy) {
@@ -601,13 +595,6 @@ class GameMapScene extends Phaser.Scene {
         }
         break;
 
-      case 'converse':
-        if (u && u.faction === FACTION.ENEMY && !u.isBoss &&
-            this.attackRange.has(key)) {
-          this._doConverse(u);
-        }
-        break;
-
       case 'gallop':
         // Confirm on any tile in the gallop range (or stay in place) to reposition
         if (this.moveRange.has(key) && (!u || u === this.selectedUnit)) {
@@ -666,10 +653,6 @@ class GameMapScene extends Phaser.Scene {
         this.forecastTarget = null;
         this._openMenu();
         break;
-      case 'converse':
-        this.forecastTarget = null;
-        this._openMenu();
-        break;
       case 'gallop':
         // Skip remaining gallop movement — end the turn
         this.selectedUnit.moved = true;
@@ -695,10 +678,6 @@ class GameMapScene extends Phaser.Scene {
                        this.units.some(u => inRange(u) && !u.isBoss);
     const hasSteal   = this.selectedUnit?.className === 'Pickpocket' &&
                        this._getStealableTargets().length > 0;
-    const hasTalk     = this.selectedUnit?.isLord && this._getTalkTarget() !== null;
-    const hasConverse = this.selectedUnit?.isLord &&
-                        this.units.some(u => u.faction === FACTION.ENEMY && u.alive &&
-                                             !u.isBoss && this.attackRange.has(`${u.gx},${u.gy}`));
     const hasItems    = (this.selectedUnit?.weapons || []).length > 0;
     const hasOpenDoor = this._adjacentCastleTile(TILE.DOOR)  !== null && this._hasKeyOrPick('door');
     const hasOpenChest= this._adjacentCastleTile(TILE.CHEST) !== null && this._hasKeyOrPick('chest');
@@ -706,8 +685,6 @@ class GameMapScene extends Phaser.Scene {
       ...(hasTarget    ? ['ATTACK']    : []),
       ...(hasExecute   ? ['EXECUTE']   : []),
       ...(hasSteal     ? ['STEAL']     : []),
-      ...(hasTalk      ? ['TALK']      : []),
-      ...(hasConverse  ? ['CONVERSE']  : []),
       ...(hasOpenDoor  ? ['OPEN DOOR'] : []),
       ...(hasOpenChest ? ['OPEN CHEST']: []),
       ...(hasItems     ? ['ITEMS']     : []),
@@ -757,10 +734,6 @@ class GameMapScene extends Phaser.Scene {
       this._enterExecute();
     } else if (opt === 'STEAL') {
       this._enterStealTarget();
-    } else if (opt === 'TALK') {
-      this._doTalk();
-    } else if (opt === 'CONVERSE') {
-      this._enterConverse();
     } else if (opt === 'OPEN DOOR') {
       this._doOpenDoor();
     } else if (opt === 'OPEN CHEST') {
@@ -982,59 +955,6 @@ class GameMapScene extends Phaser.Scene {
     }
   }
 
-  // ── Talk (lord recruits adjacent neutral unit) ───────────────────────────────
-  _getTalkTarget() {
-    if (!this.selectedUnit) return null;
-    for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
-      const u = this._unitAt(this.selectedUnit.gx + dx, this.selectedUnit.gy + dy);
-      if (u && u.faction === FACTION.NEUTRAL && u.isRecruitable) return u;
-    }
-    return null;
-  }
-
-  _doTalk() {
-    const target = this._getTalkTarget();
-    if (!target) return;
-    target.faction      = FACTION.PLAYER;
-    target.isRecruitable = false;
-    target.moved        = true;   // can't act the turn they join
-    this.battleLog = [`${target.name} joined the party!`];
-    this.logT = 2500;
-    this._finalizeAction(this.selectedUnit);
-  }
-
-  // ── Converse (lord persuades an adjacent enemy to switch sides) ──────────────
-  _enterConverse() {
-    this.gameState      = 'converse';
-    this.forecastTarget = null;
-    let nearest = null, bestD = 9999;
-    for (const u of this.units) {
-      if (u.faction === FACTION.ENEMY && u.alive && !u.isBoss &&
-          this.attackRange.has(`${u.gx},${u.gy}`)) {
-        const d = Math.abs(u.gx - this.selectedUnit.gx) +
-                  Math.abs(u.gy - this.selectedUnit.gy);
-        if (d < bestD) { bestD = d; nearest = u; }
-      }
-    }
-    if (nearest) {
-      this.cursorX = nearest.gx;
-      this.cursorY = nearest.gy;
-      this._computeCamera();
-      this.forecastTarget = nearest;
-    }
-  }
-
-  _doConverse(target) {
-    if (Math.random() < 0.33) {
-      target.faction = FACTION.PLAYER;
-      target.moved   = true;
-      this.battleLog = [`${target.name} joined the party!`];
-    } else {
-      this.battleLog = [`${target.name} wouldn't listen...`];
-    }
-    this.logT = 2500;
-    this._finalizeAction(this.selectedUnit);
-  }
 
   // ── Gallop (Stud Master) ──────────────────────────────────────────────────────
   // Called after every action. Grants the Stud Master a second move with
@@ -1272,10 +1192,12 @@ class GameMapScene extends Phaser.Scene {
     this.battleLog = [logLine];
 
     // Counter-attack if defender survived and attacker is within defender's weapon range
+    let counterHappened = false;
     if (defender.alive) {
       const dist = Math.abs(attacker.gx - defender.gx) + Math.abs(attacker.gy - defender.gy);
       const [defMinR, defMaxR] = this._weaponRange(defender);
       if (dist >= defMinR && dist <= defMaxR) {
+        counterHappened = true;
         const aTDef = TILE_DEF[this.grid[attacker.gy][attacker.gx]];
         const { dmg: cdmg } = defender.calcDamage(attacker, aTDef);
         attacker.hp -= cdmg;
@@ -1286,15 +1208,15 @@ class GameMapScene extends Phaser.Scene {
 
     this.logT = 2500;
 
-    // Award XP for any kill where a player unit is responsible.
-    // Covers both: player attacks and kills, AND enemy attacks but dies on counter.
+    // Award XP: full amount for kills, 25% for hitting without killing.
     const playerKilledEnemy   = attacker.faction === FACTION.PLAYER && !defender.alive;
     const counterKilledAttack = defender.faction === FACTION.PLAYER && !attacker.alive;
+    const floor = this.saveData.currentLevel;
+
     if (playerKilledEnemy || counterKilledAttack) {
       const playerUnit = playerKilledEnemy ? attacker : defender;
       const enemyUnit  = playerKilledEnemy ? defender : attacker;
-      const floor      = this.saveData.currentLevel;
-      const xpAmt      = enemyUnit.isBoss
+      const xpAmt = enemyUnit.isBoss
         ? 100
         : Math.max(5, Math.round(
             40 * Math.pow(0.9, playerUnit.level - 1) * (1 + (floor - 1) * 0.15)
@@ -1303,13 +1225,30 @@ class GameMapScene extends Phaser.Scene {
       const result  = playerUnit.awardXP(xpAmt);
       this.xpAnim   = {
         unit: playerUnit, amount: xpAmt, startXP,
-        endXP:     result.leveled ? 100 : playerUnit.xp,
-        displayXP: startXP,
-        duration:  1100,
-        elapsed:   0,
-        doLevelUp: result.leveled,
-        gained:    result.gained,
+        endXP: result.leveled ? 100 : playerUnit.xp,
+        displayXP: startXP, duration: 1100, elapsed: 0,
+        doLevelUp: result.leveled, gained: result.gained,
       };
+    } else {
+      // Partial XP for landing a hit without killing
+      let playerHitter = null;
+      if (attacker.faction === FACTION.PLAYER && defender.faction === FACTION.ENEMY && hitCount > 0 && defender.alive)
+        playerHitter = attacker;
+      else if (counterHappened && defender.faction === FACTION.PLAYER && attacker.faction === FACTION.ENEMY && attacker.alive)
+        playerHitter = defender;
+
+      if (playerHitter) {
+        const killXP = Math.max(5, Math.round(40 * Math.pow(0.9, playerHitter.level - 1) * (1 + (floor - 1) * 0.15)));
+        const hitXP  = Math.max(1, Math.round(killXP * 0.25));
+        const startXP = playerHitter.xp;
+        const result  = playerHitter.awardXP(hitXP);
+        this.xpAnim   = {
+          unit: playerHitter, amount: hitXP, startXP,
+          endXP: result.leveled ? 100 : playerHitter.xp,
+          displayXP: startXP, duration: 800, elapsed: 0,
+          doLevelUp: result.leveled, gained: result.gained,
+        };
+      }
     }
 
     this._removeDead();
@@ -1520,7 +1459,7 @@ class GameMapScene extends Phaser.Scene {
     ];
     this._fcTexts.forEach(t => t.setVisible(false));
 
-    // Action menu (up to 9 options: ATTACK EXECUTE STEAL TALK CONVERSE OPEN_DOOR OPEN_CHEST ITEMS WAIT)
+    // Action menu (up to 7 options: ATTACK EXECUTE STEAL OPEN_DOOR OPEN_CHEST ITEMS WAIT)
     this.txtMenuItems = Array.from({ length: 9 }, () =>
       this.add.text(0, 0, '', s(22, C.TEXT)).setDepth(6)
     );
@@ -2059,8 +1998,6 @@ class GameMapScene extends Phaser.Scene {
         ? (this.forecastTarget ? 'X:attack  Z:back' : 'aim at enemy  Z:back')
         : this.gameState === 'execute'
         ? (this.forecastTarget ? 'X:execute  Z:back' : 'aim at enemy  Z:back')
-        : this.gameState === 'converse'
-        ? (this.forecastTarget ? 'X:attempt converse  Z:back' : 'aim at enemy  Z:back')
         : this.gameState === 'gallop'
         ? 'Gallop — move remaining tiles  Z:skip'
         : this.gameState === 'steal-target'

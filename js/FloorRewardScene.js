@@ -115,17 +115,21 @@ class FloorRewardScene extends Phaser.Scene {
     this.pendingAbilityId  = null;
     this.abilityPickList   = [];
     this.recruitOfferDone  = false;
+    this.recruitInputReady = false;
     this.pendingRecruit    = null;
     this.recruitCursor     = 0;    // 0 = YES, 1 = NO
     this.lordUnit          = this._buildLordUnit();
     this.upgrades          = this._pickUpgrades(3);
 
-    this.gfx = this.add.graphics();
+    this.gfx        = this.add.graphics();
+    this.recruitGfx = this.add.graphics().setDepth(10);
     this.keys = this.input.keyboard.addKeys({
       up:      Phaser.Input.Keyboard.KeyCodes.UP,
       down:    Phaser.Input.Keyboard.KeyCodes.DOWN,
       w:       Phaser.Input.Keyboard.KeyCodes.W,
       s:       Phaser.Input.Keyboard.KeyCodes.S,
+      a:       Phaser.Input.Keyboard.KeyCodes.A,
+      d:       Phaser.Input.Keyboard.KeyCodes.D,
       confirm: Phaser.Input.Keyboard.KeyCodes.X,
       enter:   Phaser.Input.Keyboard.KeyCodes.ENTER,
       cancel:  Phaser.Input.Keyboard.KeyCodes.Z,
@@ -174,7 +178,6 @@ class FloorRewardScene extends Phaser.Scene {
 
   // ── Pick n distinct upgrades ─────────────────────────────────────────────────
   // 'duplicate' excluded if inventory is empty.
-  // recruit options only appear after floor 1 (currentLevel === 2 at reward time).
   // elemental weapon options excluded if no party member uses any physical weapon.
   _pickUpgrades(n) {
     const hasItems    = (this.saveData.playerStats?.weapons || []).length > 0;
@@ -228,13 +231,13 @@ class FloorRewardScene extends Phaser.Scene {
       this.add.text(0, 0, '', f(20, C.TEXT)).setDepth(4).setVisible(false)
     );
 
-    // Recruit offer overlay
-    this.txtRecruitTitle   = this.add.text(0, 0, '', f(32, C.TITLE)).setDepth(5).setVisible(false);
-    this.txtRecruitName    = this.add.text(0, 0, '', f(24, C.TEXT)).setDepth(5).setVisible(false);
-    this.txtRecruitStats   = this.add.text(0, 0, '', f(20, C.DIM)).setDepth(5).setVisible(false);
-    this.txtRecruitWeapons = this.add.text(0, 0, '', f(20, C.DIM)).setDepth(5).setVisible(false);
-    this.txtRecruitOptions = this.add.text(0, 0, '', f(28, C.TEXT)).setDepth(5).setVisible(false);
-    this.txtRecruitHint    = this.add.text(0, 0, '', f(18, C.DIM)).setDepth(5).setVisible(false);
+    // Recruit offer overlay — depth 11 puts text above recruitGfx (depth 10)
+    this.txtRecruitTitle   = this.add.text(0, 0, '', f(32, C.TITLE)).setDepth(11).setVisible(false);
+    this.txtRecruitName    = this.add.text(0, 0, '', f(24, C.TEXT)).setDepth(11).setVisible(false);
+    this.txtRecruitStats   = this.add.text(0, 0, '', f(20, C.DIM)).setDepth(11).setVisible(false);
+    this.txtRecruitWeapons = this.add.text(0, 0, '', f(20, C.DIM)).setDepth(11).setVisible(false);
+    this.txtRecruitOptions = this.add.text(0, 0, '', f(28, C.TEXT)).setDepth(11).setVisible(false);
+    this.txtRecruitHint    = this.add.text(0, 0, '', f(18, C.DIM)).setDepth(11).setVisible(false);
   }
 
   // ── Main loop ─────────────────────────────────────────────────────────────────
@@ -284,14 +287,18 @@ class FloorRewardScene extends Phaser.Scene {
     }
 
     if (this.gameState === 'recruit-offer') {
-      if (jd(this.keys.up)   || jd(this.keys.w))    this.recruitCursor = 0;
-      if (jd(this.keys.down) || jd(this.keys.s))    this.recruitCursor = 1;
-      if (jd(this.keys.confirm) || jd(this.keys.enter)) {
-        if (this.recruitCursor === 0) {
-          this._addAllyToSave(this.pendingRecruit);
-          this._saveLordStats();
+      if (!this.recruitInputReady) {
+        this.recruitInputReady = true;  // eat the frame the offer appeared on
+      } else {
+        if (jd(this.keys.a))    this.recruitCursor = 0;  // YES
+        if (jd(this.keys.d))    this.recruitCursor = 1;  // NO
+        if (jd(this.keys.confirm) || jd(this.keys.enter)) {
+          if (this.recruitCursor === 0) {
+            this._addAllyToSave(this.pendingRecruit);
+            this._saveLordStats();
+          }
+          this._fadeToGameMap();
         }
-        this._fadeToGameMap();
       }
     }
 
@@ -554,20 +561,46 @@ class FloorRewardScene extends Phaser.Scene {
   }
 
   _enterRecruitOffer() {
-    this.recruitOfferDone = true;
-    const pool = FloorRewardScene.RECRUIT_POOL;
-    this.pendingRecruit   = pool[Math.floor(Math.random() * pool.length)];
-    this.recruitCursor    = 0;
-    this.gameState        = 'recruit-offer';
+    this.recruitOfferDone  = true;
+    this.recruitInputReady = false;
+    const pool     = FloorRewardScene.RECRUIT_POOL;
+    const template = pool[Math.floor(Math.random() * pool.length)];
+    // Level scales with floor: ~3-4 at floor 2, ~7-8 at floor 10, ~17-18 at floor 30
+    const floor        = this.saveData.currentLevel;
+    const scaledLevel  = Math.floor(floor * 0.5) + 2 + Math.floor(Math.random() * 2);
+    this.pendingRecruit = { ...template, level: scaledLevel };
+    this.recruitCursor  = 0;
+    this.gameState      = 'recruit-offer';
   }
 
   // ── Rendering ─────────────────────────────────────────────────────────────────
   _render() {
     const g = this.gfx;
     g.clear();
+    this.recruitGfx.clear();
 
     g.fillStyle(0x000000, 0.72);
     g.fillRect(0, 0, GAME_W, GAME_H);
+
+    if (this.gameState === 'recruit-offer') {
+      // Hide all card/overlay text so nothing bleeds through the recruit panel
+      this.txtCardLabels.forEach(t => t.setVisible(false));
+      this.txtCardDescs.forEach(t => t.setVisible(false));
+      this.txtPickHeader.setVisible(false);
+      this.txtPickItems.forEach(t => t.setVisible(false));
+      this.txtPartyPickHeader.setVisible(false);
+      this.txtPartyPickItems.forEach(t => t.setVisible(false));
+      this._renderRecruitOffer();
+      return;
+    }
+
+    // Hide recruit overlay when not active
+    this.txtRecruitTitle.setVisible(false);
+    this.txtRecruitName.setVisible(false);
+    this.txtRecruitStats.setVisible(false);
+    this.txtRecruitWeapons.setVisible(false);
+    this.txtRecruitOptions.setVisible(false);
+    this.txtRecruitHint.setVisible(false);
 
     this._renderCards(g);
 
@@ -586,20 +619,10 @@ class FloorRewardScene extends Phaser.Scene {
       this.txtPartyPickHeader.setVisible(false);
       this.txtPartyPickItems.forEach(t => t.setVisible(false));
     }
-
-    if (this.gameState === 'recruit-offer') {
-      this._renderRecruitOffer(g);
-    } else {
-      this.txtRecruitTitle.setVisible(false);
-      this.txtRecruitName.setVisible(false);
-      this.txtRecruitStats.setVisible(false);
-      this.txtRecruitWeapons.setVisible(false);
-      this.txtRecruitOptions.setVisible(false);
-      this.txtRecruitHint.setVisible(false);
-    }
   }
 
-  _renderRecruitOffer(g) {
+  _renderRecruitOffer() {
+    const g    = this.recruitGfx;
     const r    = this.pendingRecruit;
     const panW = 600, panH = 320;
     const panX = (GAME_W - panW) / 2;
@@ -642,7 +665,7 @@ class FloorRewardScene extends Phaser.Scene {
       .setVisible(true);
 
     this.txtRecruitHint
-      .setText('W/S: choose   X / Enter: confirm')
+      .setText('A: YES   D: NO   X / Enter: confirm')
       .setPosition(panX + panW / 2, panY + 282).setOrigin(0.5)
       .setVisible(true);
   }
